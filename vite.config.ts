@@ -2,7 +2,11 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Served from https://bbbenji.github.io/furbys_playroom/ as a GitHub Pages
+  // project site, so built asset URLs need that path prefix. Dev server keeps
+  // serving from / so `npm run dev` still works unprefixed.
+  base: command === 'build' ? '/furbys_playroom/' : '/',
   plugins: [
     vue(),
     VitePWA({
@@ -29,4 +33,4 @@ export default defineConfig({
       }
     })
   ]
-})
+}))
