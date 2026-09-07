@@ -316,12 +316,9 @@ function handleSurprise() {
   handleItemClick(item);
 }
 
-function handleWakeToggle() {
+function handleSleepToggle() {
   vibrate(20);
-  if (store.soundFxEnabled) {
-    if (!store.keepAliveActive) playChime();
-    else playPop();
-  }
+  if (store.soundFxEnabled) playPop();
   store.toggleKeepAlive();
 }
 
@@ -428,10 +425,10 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
     <div v-if="!onboardingDismissed" class="kids-onboarding">
       <span class="onboarding-emoji" aria-hidden="true">👋</span>
       <p>
-        First time here? Tap <strong>Wake Up Furby!</strong> below, then explore
-        <strong>Silly Tricks</strong>, <strong>Feed Furby</strong>, and
-        <strong>Dance Party</strong>
-        to hear magic sounds!
+        First time here? Explore <strong>Silly Tricks</strong>,
+        <strong>Feed Furby</strong>, and <strong>Dance Party</strong> below to
+        hear magic sounds! Furby wakes up on its own the first time you tap
+        something.
       </p>
       <button
         type="button"
@@ -443,42 +440,19 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
       </button>
     </div>
 
-    <!-- Top Wake-Up & Listening Station -->
+    <!-- Listening Status & Quick Controls -->
     <div class="wake-station">
-      <div
-        class="wake-card"
-        :class="{ awake: store.keepAliveActive }"
-        @click="handleWakeToggle"
+      <!-- Furby wakes itself automatically on the first command, but kids
+           still need a way to ask it to be quiet again. -->
+      <button
+        v-if="store.keepAliveActive"
+        type="button"
+        class="sleep-status"
+        @click="handleSleepToggle"
       >
-        <div class="wake-icon-wrap" aria-hidden="true">
-          <span class="wake-icon">{{
-            store.keepAliveActive ? "🌟" : "💤"
-          }}</span>
-        </div>
-        <div class="wake-text">
-          <h2 class="wake-title">
-            {{
-              store.keepAliveActive
-                ? "Furby is Awake & Ready!"
-                : "Wake Up Furby!"
-            }}
-          </h2>
-          <p class="wake-subtitle">
-            {{
-              store.keepAliveActive
-                ? "Furby is listening for your commands (tap to let sleep)"
-                : "Tap here so Furby stays awake and ready to play!"
-            }}
-          </p>
-        </div>
-        <button
-          type="button"
-          class="wake-btn"
-          :class="{ awake: store.keepAliveActive }"
-        >
-          {{ store.keepAliveActive ? "Sleep 💤" : "Wake Up! ✨" }}
-        </button>
-      </div>
+        <span class="sleep-icon" aria-hidden="true">🌟</span>
+        <span>Furby is awake and listening - tap to let sleep 💤</span>
+      </button>
 
       <!-- Quick Control Pills -->
       <div class="quick-controls">
@@ -840,115 +814,45 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   color: var(--text);
 }
 
-/* Wake Station Card */
+/* Listening Status & Quick Controls */
 .wake-station {
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
 }
 
-.wake-card {
+.sleep-status {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 1rem 1.2rem;
-  border-radius: 22px;
-  background: linear-gradient(
-    135deg,
-    rgba(124, 58, 237, 0.25),
-    rgba(236, 72, 153, 0.2)
-  );
-  border: 2px solid rgba(168, 85, 247, 0.4);
-  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.15);
-  cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  user-select: none;
-}
-
-.wake-card:hover {
-  transform: translateY(-2px);
-  border-color: rgba(168, 85, 247, 0.7);
-  box-shadow: 0 12px 30px rgba(124, 58, 237, 0.25);
-}
-
-.wake-card.awake {
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 14px;
+  border: 2px solid rgba(16, 185, 129, 0.5);
   background: linear-gradient(
     135deg,
     rgba(16, 185, 129, 0.2),
     rgba(6, 182, 212, 0.2)
   );
-  border-color: rgba(16, 185, 129, 0.5);
-  box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
-}
-
-.wake-icon-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 1.8rem;
-  flex-shrink: 0;
-}
-
-.wake-text {
-  flex: 1;
-}
-
-.wake-title {
-  margin: 0 0 0.25rem;
-  font-size: 1.2rem;
-  font-weight: 800;
   color: var(--text);
-  letter-spacing: -0.01em;
-}
-
-.wake-subtitle {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.wake-btn {
-  padding: 0.65rem 1.1rem;
-  border-radius: 9999px;
-  border: none;
-  background: linear-gradient(135deg, #a855f7, #ec4899);
-  color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 700;
+  text-align: left;
   cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.35);
   transition: transform 0.15s ease;
 }
 
-.wake-btn.awake {
-  background: linear-gradient(135deg, #10b981, #06b6d4);
-  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+.sleep-status:hover {
+  transform: translateY(-1px);
 }
 
-.wake-btn:active {
-  transform: scale(0.95);
+.sleep-status:active {
+  transform: scale(0.98);
 }
 
-/* On narrow phones the icon + title + pill button can't all fit on one
-   row - the title was wrapping to one word per line. Let the button drop
-   to its own full-width row instead. */
-@media (max-width: 480px) {
-  .wake-card {
-    flex-wrap: wrap;
-  }
-  .wake-text {
-    min-width: 180px;
-  }
-  .wake-btn {
-    flex: 1 0 100%;
-    margin-top: 0.2rem;
-  }
+.sleep-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
 }
 
 /* Quick Control Pills */
