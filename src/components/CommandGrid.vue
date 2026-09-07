@@ -19,6 +19,7 @@ const store = useFurbyStore()
         :key="cmd.id"
         class="cmd-btn"
         :class="{ busy: store.sending === cmd.id }"
+        :disabled="store.sending !== null"
         :title="cmd.description"
         @click="store.send(cmd.id)"
       >
@@ -63,5 +64,12 @@ h2 {
 .cmd-btn.busy {
   background: var(--accent);
   color: white;
+}
+.cmd-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.cmd-btn.busy:disabled {
+  opacity: 1;
 }
 </style>

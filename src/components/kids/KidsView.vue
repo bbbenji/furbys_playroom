@@ -579,7 +579,12 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           }}
         </p>
       </div>
-      <button type="button" class="surprise-btn" @click="handleSurprise">
+      <button
+        type="button"
+        class="surprise-btn"
+        :disabled="store.sending !== null"
+        @click="handleSurprise"
+      >
         <span class="surprise-icon" aria-hidden="true">🎲</span>
         <span>Surprise Me!</span>
       </button>
@@ -654,6 +659,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           :key="item.id"
           class="play-card trick-card"
           :class="{ busy: store.sending === item.id }"
+          :disabled="store.sending !== null"
           :style="{ '--card-color': item.color }"
           @click="handleItemClick(item)"
         >
@@ -678,6 +684,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           :key="item.id"
           class="play-card food-card"
           :class="{ busy: store.sending === item.id }"
+          :disabled="store.sending !== null"
           :style="{ '--card-color': item.color }"
           @click="handleItemClick(item)"
         >
@@ -702,6 +709,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           :key="item.id"
           class="play-card music-card"
           :class="{ busy: store.sending === item.id }"
+          :disabled="store.sending !== null"
           :style="{ '--card-color': item.color }"
           @click="handleItemClick(item)"
         >
@@ -727,6 +735,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           <button
             class="ask-mood-btn"
             :class="{ busy: store.sending === 813 }"
+            :disabled="store.sending !== null"
             @click="handleMoodCheck"
           >
             <span class="crystal-icon">🔮</span>
@@ -1128,6 +1137,12 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   font-size: 1.3rem;
 }
 
+.surprise-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
 /* Category Tabs */
 .category-tabs {
   display: grid;
@@ -1276,6 +1291,15 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   color: rgba(255, 255, 255, 0.85);
 }
 
+.play-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.play-card.busy:disabled {
+  opacity: 1;
+}
+
 /* Mood & Personality Section */
 .mood-box {
   display: flex;
@@ -1338,6 +1362,12 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 .ask-mood-btn.busy {
   opacity: 0.8;
   filter: brightness(1.2);
+}
+
+.ask-mood-btn:disabled:not(.busy) {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .crystal-icon {

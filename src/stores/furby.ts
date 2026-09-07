@@ -216,6 +216,12 @@ export const useFurbyStore = defineStore("furby", {
     },
 
     async send(command: number) {
+      // Ignore taps while a command is already in flight - each one queues
+      // behind the last through ComAirPlayer's serialized playback, so
+      // spamming buttons would just pile up a long backlog of sounds rather
+      // than doing anything useful.
+      if (this.sending !== null) return;
+
       this.sending = command;
       this.sendError = null;
       this.triggerMascotReaction(getMoodForCommand(command));
