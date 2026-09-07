@@ -32,5 +32,9 @@ export default defineConfig(({ command }) => ({
         globPatterns: ['**/*.{js,css,html,svg,ico,png}']
       }
     })
-  ]
+  ],
+  test: {
+    environment: 'node',
+    setupFiles: ['./src/test-setup.ts']
+  }
 }))

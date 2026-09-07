@@ -68,12 +68,20 @@ const UI_MODE_STORAGE_KEY = "furby-console:mode:v1";
 const SOUND_FX_STORAGE_KEY = "furby-console:soundfx:v1";
 const READ_ALOUD_STORAGE_KEY = "furby-console:readaloud:v1";
 const HAPTICS_STORAGE_KEY = "furby-console:haptics:v1";
+const RX_THRESHOLD_STORAGE_KEY = "furby-console:rxthreshold:v1";
+
+/** Default Goertzel magnitude a tone needs to clear to count as "heard" - see ComAirReceiver. */
+export const DEFAULT_RX_THRESHOLD = 0.01;
 
 const initialMode: UiMode =
   (localStorage.getItem(UI_MODE_STORAGE_KEY) as UiMode) || "kids";
 const initialSoundFx = localStorage.getItem(SOUND_FX_STORAGE_KEY) !== "0";
 const initialReadAloud = localStorage.getItem(READ_ALOUD_STORAGE_KEY) === "1";
 const initialHaptics = localStorage.getItem(HAPTICS_STORAGE_KEY) !== "0";
+const initialRxThreshold = (() => {
+  const parsed = Number(localStorage.getItem(RX_THRESHOLD_STORAGE_KEY));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_RX_THRESHOLD;
+})();
 
 let moodTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -111,6 +119,11 @@ export const useFurbyStore = defineStore("furby", {
     log: initialLog as LogEntry[],
     personalityHistory: initialPersonalityHistory as PersonalitySighting[],
     sending: null as number | null,
+    rxThreshold: initialRxThreshold as number,
+    /** Live per-tone Goertzel magnitudes from the current mic window, for the RX debug view. Empty while mic is off. */
+    rxMagnitudes: {} as Record<string, number>,
+    /** Whichever tone was strongest in the most recent mic window (regardless of threshold). */
+    rxSymbol: null as string | null,
   }),
 
   getters: {
@@ -273,19 +286,36 @@ export const useFurbyStore = defineStore("furby", {
         receiver?.stop();
         receiver = null;
         this.micActive = false;
+        this.rxMagnitudes = {};
+        this.rxSymbol = null;
         return;
       }
 
       this.micError = null;
       try {
-        receiver = new ComAirReceiver();
+        receiver = new ComAirReceiver(this.rxThreshold);
         receiver.onCommand(({ command }) => this._log("rx", command));
+        receiver.onSymbol(({ symbol, magnitudes }) => {
+          this.rxSymbol = symbol;
+          this.rxMagnitudes = magnitudes;
+        });
         await receiver.start();
         this.micActive = true;
       } catch (err) {
         this.micError = friendlyReceiverError(err);
         receiver = null;
         this.micActive = false;
+      }
+    },
+
+    /** Live-tunable from the RX debug panel while the mic is running, not just at start. */
+    setRxThreshold(value: number) {
+      this.rxThreshold = value;
+      if (receiver) receiver.magnitudeThreshold = value;
+      try {
+        localStorage.setItem(RX_THRESHOLD_STORAGE_KEY, String(value));
+      } catch {
+        // ignore
       }
     },
   },

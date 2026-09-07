@@ -9,6 +9,7 @@ import PersonalityTracker from "./components/PersonalityTracker.vue";
 import Phrasebook from "./components/Phrasebook.vue";
 import PwaToast from "./components/PwaToast.vue";
 import RawSender from "./components/RawSender.vue";
+import RxDebugPanel from "./components/RxDebugPanel.vue";
 import { ACTIONS, EXPERIMENTAL, FOOD, REQUESTS } from "./comair/commands";
 import { useFurbyStore, type UiMode } from "./stores/furby";
 
@@ -106,6 +107,7 @@ onMounted(() => {
         </p>
 
         <PersonalityTracker />
+        <RxDebugPanel />
 
         <CommandGrid title="Requests" :commands="REQUESTS" />
         <CommandGrid title="Actions" :commands="ACTIONS" />

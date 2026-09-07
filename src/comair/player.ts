@@ -6,8 +6,8 @@ import { synthesizeCommand } from "./synth";
 // forever instead of resolving/firing. Without a timeout, that stalls this
 // player's serialized queue permanently - every future send() would queue
 // behind the stuck one and never play, with no way to recover but a reload.
-const RESUME_TIMEOUT_MS = 4000;
-const PLAYBACK_TIMEOUT_MS = 8000;
+export const RESUME_TIMEOUT_MS = 4000;
+export const PLAYBACK_TIMEOUT_MS = 8000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {

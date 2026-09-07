@@ -13,7 +13,7 @@ export interface ReceivedCommand {
   at: number;
 }
 
-type SymbolMsg = {
+export type SymbolMsg = {
   symbol: string | null;
   magnitude: number;
   magnitudes: Record<string, number>;
@@ -40,9 +40,11 @@ export class ComAirReceiver {
   private lastSymbol: string | null = null;
   private lastEmittedHigh: ReceivedPacket | null = null;
 
-  private readonly magnitudeThreshold: number;
+  /** Live-adjustable (unlike the rest of the decoder state) so a debug UI can tune it while the mic is running. */
+  magnitudeThreshold: number;
   private packetHandlers: Array<(p: ReceivedPacket) => void> = [];
   private commandHandlers: Array<(c: ReceivedCommand) => void> = [];
+  private symbolHandlers: Array<(m: SymbolMsg) => void> = [];
 
   constructor(magnitudeThreshold = 0.01) {
     this.magnitudeThreshold = magnitudeThreshold;
@@ -54,6 +56,11 @@ export class ComAirReceiver {
 
   onCommand(handler: (c: ReceivedCommand) => void): void {
     this.commandHandlers.push(handler);
+  }
+
+  /** Raw per-window magnitudes for every tone, before thresholding - for a live signal-strength debug view. */
+  onSymbol(handler: (m: SymbolMsg) => void): void {
+    this.symbolHandlers.push(handler);
   }
 
   async start(): Promise<void> {
@@ -125,6 +132,8 @@ export class ComAirReceiver {
   }
 
   private handleSymbol(msg: SymbolMsg): void {
+    this.symbolHandlers.forEach((h) => h(msg));
+
     const symbol = msg.magnitude >= this.magnitudeThreshold ? msg.symbol : null;
     if (symbol === this.lastSymbol) return;
     this.lastSymbol = symbol;

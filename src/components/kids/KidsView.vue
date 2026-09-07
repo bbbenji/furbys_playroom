@@ -371,6 +371,11 @@ watch(personalityBadge, (badge) => {
   if (badge && store.readAloudEnabled) speak(`Furby is a ${badge.title}!`);
 });
 
+/** Whether the mic is currently picking up any tone loud enough to count - a friendly stand-in for the technical RX debug panel in Pro Console. */
+const hasLiveRxSignal = computed(() =>
+  Object.values(store.rxMagnitudes).some((m) => m >= store.rxThreshold),
+);
+
 function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   switch (id) {
     case 901:
@@ -718,6 +723,14 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
             <span class="crystal-icon">🔮</span>
             <span>Ask Furby's Mood</span>
           </button>
+          <p v-if="store.micActive" class="mic-status" :class="{ hearing: hasLiveRxSignal }">
+            <span class="mic-status-dot" aria-hidden="true"></span>
+            {{
+              hasLiveRxSignal
+                ? "I can hear something!"
+                : "Listening... hold me closer if Furby's talking!"
+            }}
+          </p>
         </div>
 
         <div v-if="personalityBadge" class="personality-card">
@@ -1331,6 +1344,45 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 .crystal-icon {
   font-size: 1.3rem;
+}
+
+.mic-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.mic-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+
+.mic-status.hearing {
+  color: var(--accent-2);
+}
+
+.mic-status.hearing .mic-status-dot {
+  background: var(--accent-2);
+  animation: micHearingPulse 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes micHearingPulse {
+  0% {
+    opacity: 0.5;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 .personality-card {
