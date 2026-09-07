@@ -1,8 +1,14 @@
 /**
  * Kid-friendly synthesized Web Audio sound effects.
  *
- * All frequencies are strictly kept below 1500 Hz so they never overlap
- * or interfere with Furby's ultrasonic ComAir carrier frequencies (17.5 kHz – 19 kHz).
+ * Tonal oscillators are kept below 1500 Hz. The noise-burst textures used
+ * for crunch/rasp/thud layers below use a low-pass cutoff up to 3.5kHz for
+ * character, but always through two cascaded lowpass stages (~24dB/octave
+ * combined) - even at the brightest cutoff used here that's >50dB down by
+ * 17.5kHz, i.e. inaudible/negligible there. Both are so nothing here
+ * overlaps or interferes with Furby's ultrasonic ComAir carrier frequencies
+ * (17.5 kHz - 19 kHz), even though a sound effect and an actual ComAir
+ * transmission can be playing out the same speaker at the same moment.
  */
 
 let audioCtx: AudioContext | null = null
@@ -17,6 +23,55 @@ function getAudioContext(): AudioContext | null {
     audioCtx.resume().catch(() => {})
   }
   return audioCtx
+}
+
+/** A short burst of white noise run through two cascaded lowpass stages (~24dB/octave combined), so even at a bright cutoff it's negligible by 17.5kHz+. */
+function playNoiseBurst(
+  ctx: AudioContext,
+  { startTime, duration, cutoff, peakGain }: { startTime: number; duration: number; cutoff: number; peakGain: number },
+) {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * duration))
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+
+  const source = ctx.createBufferSource()
+  source.buffer = buffer
+
+  const filter1 = ctx.createBiquadFilter()
+  filter1.type = 'lowpass'
+  filter1.frequency.value = cutoff
+  const filter2 = ctx.createBiquadFilter()
+  filter2.type = 'lowpass'
+  filter2.frequency.value = cutoff
+
+  const gain = ctx.createGain()
+  gain.gain.setValueAtTime(peakGain, startTime)
+  gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration)
+
+  source.connect(filter1)
+  filter1.connect(filter2)
+  filter2.connect(gain)
+  gain.connect(ctx.destination)
+
+  source.start(startTime)
+  source.stop(startTime + duration + 0.02)
+}
+
+/** Wires a fast LFO into an oscillator's frequency param for a buzzy/wobbly flutter. */
+function addVibrato(
+  ctx: AudioContext,
+  target: AudioParam,
+  { startTime, duration, rateHz, depthHz }: { startTime: number; duration: number; rateHz: number; depthHz: number },
+) {
+  const lfo = ctx.createOscillator()
+  const lfoGain = ctx.createGain()
+  lfo.frequency.value = rateHz
+  lfoGain.gain.value = depthHz
+  lfo.connect(lfoGain)
+  lfoGain.connect(target)
+  lfo.start(startTime)
+  lfo.stop(startTime + duration)
 }
 
 export function playPop() {
@@ -39,6 +94,10 @@ export function playPop() {
 
   osc.start(now)
   osc.stop(now + 0.09)
+
+  // A touch of soft thud under the tone gives it a tactile "click" instead
+  // of a bare whistle.
+  playNoiseBurst(ctx, { startTime: now, duration: 0.03, cutoff: 1200, peakGain: 0.06 })
 }
 
 export function playBoing() {
@@ -57,11 +116,16 @@ export function playBoing() {
   gain.gain.setValueAtTime(0.14, now)
   gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25)
 
+  addVibrato(ctx, osc.frequency, { startTime: now, duration: 0.25, rateHz: 22, depthHz: 12 })
+
   osc.connect(gain)
   gain.connect(ctx.destination)
 
   osc.start(now)
   osc.stop(now + 0.26)
+
+  // A quick thwack at the very start of the bounce gives the spring some snap.
+  playNoiseBurst(ctx, { startTime: now, duration: 0.02, cutoff: 1400, peakGain: 0.08 })
 }
 
 export function playChime() {
@@ -72,20 +136,34 @@ export function playChime() {
 
   notes.forEach((freq, idx) => {
     const now = startTime + idx * 0.07
+
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
-
     osc.type = 'sine'
     osc.frequency.setValueAtTime(freq, now)
-
     gain.gain.setValueAtTime(0.08, now)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22)
-
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.32)
     osc.connect(gain)
     gain.connect(ctx.destination)
-
     osc.start(now)
-    osc.stop(now + 0.23)
+    osc.stop(now + 0.33)
+
+    // A quiet unison layer, detuned a few cents, under each note - the
+    // classic "chorus" trick (beating between two near-identical pitches)
+    // for turning a flat sine into something that reads as magical/sparkly
+    // instead of a plain beep. Detuned in cents rather than pitched up an
+    // octave, so it stays under the 1500 Hz ceiling like everything else.
+    const shimmer = ctx.createOscillator()
+    const shimmerGain = ctx.createGain()
+    shimmer.type = 'sine'
+    shimmer.frequency.setValueAtTime(freq, now)
+    shimmer.detune.setValueAtTime(14, now)
+    shimmerGain.gain.setValueAtTime(0.05, now)
+    shimmerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4)
+    shimmer.connect(shimmerGain)
+    shimmerGain.connect(ctx.destination)
+    shimmer.start(now)
+    shimmer.stop(now + 0.41)
   })
 }
 
@@ -111,6 +189,10 @@ export function playChew() {
 
     osc.start(now)
     osc.stop(now + 0.07)
+
+    // A short crunchy noise burst under each bite - the pitch blip alone
+    // reads as a beep, not a bite; the noise texture is what sells "crunch."
+    playNoiseBurst(ctx, { startTime: now, duration: 0.05, cutoff: 3500, peakGain: 0.09 })
   }
 }
 
@@ -118,6 +200,7 @@ export function playFartSound() {
   const ctx = getAudioContext()
   if (!ctx) return
   const now = ctx.currentTime
+  const duration = 0.32
 
   const osc = ctx.createOscillator()
   const filter = ctx.createBiquadFilter()
@@ -133,14 +216,22 @@ export function playFartSound() {
   filter.frequency.linearRampToValueAtTime(150, now + 0.28)
 
   gain.gain.setValueAtTime(0.15, now)
-  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3)
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration)
+
+  // Fast flutter on pitch is what makes a buzzy tone read as a "raspberry"
+  // instead of a clean synth sweep.
+  addVibrato(ctx, osc.frequency, { startTime: now, duration, rateHz: 32, depthHz: 16 })
 
   osc.connect(filter)
   filter.connect(gain)
   gain.connect(ctx.destination)
 
   osc.start(now)
-  osc.stop(now + 0.31)
+  osc.stop(now + duration + 0.01)
+
+  // Low, muffled noise layered underneath for the "air" texture real
+  // raspberries have that a pure tone sweep can't capture on its own.
+  playNoiseBurst(ctx, { startTime: now, duration, cutoff: 900, peakGain: 0.1 })
 }
 
 export function playGiggle() {
@@ -149,8 +240,14 @@ export function playGiggle() {
   const startTime = ctx.currentTime
   const notes = [440, 554, 440, 587, 523]
 
-  notes.forEach((f, i) => {
-    const now = startTime + i * 0.06
+  let t = 0
+  notes.forEach((f) => {
+    const now = startTime + t
+    // Slightly humanized spacing/length so it doesn't tick along like a
+    // metronome - real "ha-ha-ha" giggling isn't perfectly even.
+    const noteDuration = 0.055 + Math.random() * 0.025
+    const gap = 0.05 + Math.random() * 0.025
+
     const osc = ctx.createOscillator()
     const gain = ctx.createGain()
 
@@ -158,12 +255,18 @@ export function playGiggle() {
     osc.frequency.setValueAtTime(f, now)
 
     gain.gain.setValueAtTime(0.08, now)
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + noteDuration)
+
+    // A quick wobble on each note is what turns a flat arpeggio into
+    // something that sounds like a laugh instead of a xylophone run.
+    addVibrato(ctx, osc.frequency, { startTime: now, duration: noteDuration, rateHz: 26, depthHz: 14 })
 
     osc.connect(gain)
     gain.connect(ctx.destination)
 
     osc.start(now)
-    osc.stop(now + 0.06)
+    osc.stop(now + noteDuration + 0.01)
+
+    t += gap
   })
 }
