@@ -49,8 +49,40 @@ const initialPersonalityHistory = loadJson<PersonalitySighting[]>(PERSONALITY_ST
 const transmitter = new ComAirTransmitter()
 let receiver: ComAirReceiver | null = null
 
+export type UiMode = 'kids' | 'console'
+export type MascotMood = 'idle' | 'happy' | 'eating' | 'farting' | 'sleeping' | 'singing' | 'surprised' | 'talking'
+
+const UI_MODE_STORAGE_KEY = 'furby-console:mode:v1'
+const SOUND_FX_STORAGE_KEY = 'furby-console:soundfx:v1'
+const READ_ALOUD_STORAGE_KEY = 'furby-console:readaloud:v1'
+const HAPTICS_STORAGE_KEY = 'furby-console:haptics:v1'
+
+const initialMode: UiMode = (localStorage.getItem(UI_MODE_STORAGE_KEY) as UiMode) || 'kids'
+const initialSoundFx = localStorage.getItem(SOUND_FX_STORAGE_KEY) !== '0'
+const initialReadAloud = localStorage.getItem(READ_ALOUD_STORAGE_KEY) === '1'
+const initialHaptics = localStorage.getItem(HAPTICS_STORAGE_KEY) !== '0'
+
+let moodTimer: ReturnType<typeof setTimeout> | null = null
+
+function getMoodForCommand(cmd: number): MascotMood {
+  if (cmd === 865) return 'farting'
+  if (cmd === 864) return 'surprised'
+  if (cmd === 863 || cmd === 866) return 'happy'
+  if (cmd === 867) return 'surprised'
+  if (cmd === 868 || cmd === 721 || cmd === 722 || cmd === 723 || cmd === 724 || cmd === 889) return 'singing'
+  if (cmd === 869 || cmd === 813) return 'talking'
+  if (cmd === 862 || cmd === 718) return 'sleeping'
+  if ((cmd >= 350 && cmd <= 360) || cmd === 372 || cmd === 417) return 'eating'
+  return 'happy'
+}
+
 export const useFurbyStore = defineStore('furby', {
   state: () => ({
+    uiMode: initialMode as UiMode,
+    soundFxEnabled: initialSoundFx,
+    readAloudEnabled: initialReadAloud,
+    hapticsEnabled: initialHaptics,
+    mascotMood: 'idle' as MascotMood,
     keepAliveActive: false,
     micActive: false,
     micError: null as string | null,
@@ -97,6 +129,50 @@ export const useFurbyStore = defineStore('furby', {
       persistJson(PERSONALITY_STORAGE_KEY, this.personalityHistory)
     },
 
+    setUiMode(mode: UiMode) {
+      this.uiMode = mode
+      try {
+        localStorage.setItem(UI_MODE_STORAGE_KEY, mode)
+      } catch {
+        // ignore
+      }
+    },
+
+    toggleSoundFx() {
+      this.soundFxEnabled = !this.soundFxEnabled
+      try {
+        localStorage.setItem(SOUND_FX_STORAGE_KEY, this.soundFxEnabled ? '1' : '0')
+      } catch {
+        // ignore
+      }
+    },
+
+    toggleReadAloud() {
+      this.readAloudEnabled = !this.readAloudEnabled
+      try {
+        localStorage.setItem(READ_ALOUD_STORAGE_KEY, this.readAloudEnabled ? '1' : '0')
+      } catch {
+        // ignore
+      }
+    },
+
+    toggleHaptics() {
+      this.hapticsEnabled = !this.hapticsEnabled
+      try {
+        localStorage.setItem(HAPTICS_STORAGE_KEY, this.hapticsEnabled ? '1' : '0')
+      } catch {
+        // ignore
+      }
+    },
+
+    triggerMascotReaction(mood: MascotMood, durationMs = 2500) {
+      if (moodTimer) clearTimeout(moodTimer)
+      this.mascotMood = mood
+      moodTimer = setTimeout(() => {
+        this.mascotMood = 'idle'
+      }, durationMs)
+    },
+
     /** Call synchronously on the very first tap anywhere in the app (iOS/Safari autoplay gate). */
     unlockAudio() {
       transmitter.unlock()
@@ -105,6 +181,7 @@ export const useFurbyStore = defineStore('furby', {
     async send(command: number) {
       this.sending = command
       this.sendError = null
+      this.triggerMascotReaction(getMoodForCommand(command))
       try {
         await transmitter.send(command)
         this._log('tx', command)
@@ -119,6 +196,7 @@ export const useFurbyStore = defineStore('furby', {
       if (transmitter.keepAliveActive) {
         transmitter.stopKeepAlive()
         this.keepAliveActive = false
+        this.triggerMascotReaction('sleeping', 2000)
         return
       }
 
@@ -127,6 +205,7 @@ export const useFurbyStore = defineStore('furby', {
         await transmitter.startKeepAlive()
         this._log('tx', 820)
         this.keepAliveActive = true
+        this.triggerMascotReaction('happy', 2500)
       } catch (err) {
         this.sendError = err instanceof Error ? err.message : String(err)
       }
