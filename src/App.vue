@@ -2,7 +2,6 @@
 import { onMounted } from "vue";
 import ActivityLog from "./components/ActivityLog.vue";
 import CommandGrid from "./components/CommandGrid.vue";
-import FurbyMascot from "./components/FurbyMascot.vue";
 import KidsView from "./components/kids/KidsView.vue";
 import { playPop } from "./components/kids/soundFx";
 import OnboardingHint from "./components/OnboardingHint.vue";
@@ -35,7 +34,6 @@ onMounted(() => {
 <template>
   <header>
     <div class="header-main">
-      <FurbyMascot :active="store.sending !== null || store.keepAliveActive" />
       <div>
         <h1>
           {{ store.uiMode === "kids" ? "Furby's Playroom" : "Furby Console" }}
