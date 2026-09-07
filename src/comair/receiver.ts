@@ -89,7 +89,9 @@ export class ComAirReceiver {
           "NotSupportedError",
         );
       }
-      await this.ctx.audioWorklet.addModule("/goertzel-processor.js");
+      await this.ctx.audioWorklet.addModule(
+        `${import.meta.env.BASE_URL}goertzel-processor.js`,
+      );
 
       const source = this.ctx.createMediaStreamSource(this.stream);
       this.node = new AudioWorkletNode(this.ctx, "goertzel-processor");
