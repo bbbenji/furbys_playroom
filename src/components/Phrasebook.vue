@@ -1,32 +1,41 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { PHRASEBOOK } from '../comair/phrasebook'
-import { useFurbyStore } from '../stores/furby'
+import { computed, ref } from "vue";
+import { PHRASEBOOK } from "../comair/phrasebook";
+import { useFurbyStore } from "../stores/furby";
 
-const store = useFurbyStore()
-const query = ref('')
-const expanded = ref(false)
+const store = useFurbyStore();
+const query = ref("");
+const expanded = ref(false);
 
 const filtered = computed(() => {
-  const q = query.value.trim().toLowerCase()
+  const q = query.value.trim().toLowerCase();
   const list = q
     ? PHRASEBOOK.filter(
-        (e) => String(e.id).includes(q) || e.english.toLowerCase().includes(q) || e.furbish.toLowerCase().includes(q),
+        (e) =>
+          String(e.id).includes(q) ||
+          e.english.toLowerCase().includes(q) ||
+          e.furbish.toLowerCase().includes(q),
       )
-    : PHRASEBOOK
-  return expanded.value ? list : list.slice(0, 30)
-})
+    : PHRASEBOOK;
+  return expanded.value ? list : list.slice(0, 30);
+});
 </script>
 
 <template>
   <section class="phrasebook">
     <h2>Furbish phrasebook</h2>
     <p class="hint">
-      {{ PHRASEBOOK.length }} known response codes, straight from Hacksby's reverse-engineered
-      dictionary. These are mostly things Furby says on its own — sending one isn't guaranteed to
-      do anything, but many do work as prompts.
+      {{ PHRASEBOOK.length }} known response codes, straight from Hacksby's
+      reverse-engineered dictionary. These are mostly things Furby says on its
+      own - sending one isn't guaranteed to do anything, but many do work as
+      prompts.
     </p>
-    <input v-model="query" type="search" placeholder="Search by id, English, or Furbish…" class="search" />
+    <input
+      v-model="query"
+      type="search"
+      placeholder="Search by id, English, or Furbish…"
+      class="search"
+    />
     <ul class="entries">
       <li v-for="e in filtered" :key="e.id">
         <span class="id">#{{ e.id }}</span>
@@ -34,11 +43,21 @@ const filtered = computed(() => {
           <span class="english">{{ e.english }}</span>
           <span class="furbish">{{ e.furbish }}</span>
         </span>
-        <button class="send" :class="{ busy: store.sending === e.id }" @click="store.send(e.id)">Send</button>
+        <button
+          class="send"
+          :class="{ busy: store.sending === e.id }"
+          @click="store.send(e.id)"
+        >
+          Send
+        </button>
       </li>
     </ul>
-    <button v-if="!expanded && filtered.length < PHRASEBOOK.length" class="more" @click="expanded = true">
-      Show all {{ query ? 'matches' : PHRASEBOOK.length }}
+    <button
+      v-if="!expanded && filtered.length < PHRASEBOOK.length"
+      class="more"
+      @click="expanded = true"
+    >
+      Show all {{ query ? "matches" : PHRASEBOOK.length }}
     </button>
   </section>
 </template>

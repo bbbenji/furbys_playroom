@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useFurbyStore } from '../stores/furby'
+import { ref } from "vue";
+import { useFurbyStore } from "../stores/furby";
 
-const store = useFurbyStore()
-const value = ref(820)
+const store = useFurbyStore();
+const value = ref(820);
 
 function submit() {
-  const n = Math.trunc(value.value)
+  const n = Math.trunc(value.value);
   if (Number.isFinite(n) && n >= 0 && n <= 1023) {
-    store.send(n)
+    store.send(n);
   }
 }
 </script>
@@ -20,7 +20,10 @@ function submit() {
       <input v-model.number="value" type="number" min="0" max="1023" />
       <button type="submit">Send</button>
     </form>
-    <p class="hint">Any command in 0-1023. Most of the space is undocumented — see the README for what's known.</p>
+    <p class="hint">
+      Any command in 0-1023. Most of the space is undocumented - see the README
+      for what's known.
+    </p>
   </section>
 </template>
 

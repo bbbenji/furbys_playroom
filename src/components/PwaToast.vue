@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { dismissPwaToast, needRefresh, offlineReady, reloadApp } from '../pwa'
+import { dismissPwaToast, needRefresh, offlineReady, reloadApp } from "../pwa";
 </script>
 
 <template>
   <div v-if="offlineReady || needRefresh" class="pwa-toast" role="status">
     <span v-if="needRefresh">A new version is ready.</span>
-    <span v-else>Installed — works offline now.</span>
+    <span v-else>Installed - works offline now.</span>
     <button v-if="needRefresh" class="reload" @click="reloadApp">Reload</button>
-    <button class="dismiss" aria-label="Dismiss" @click="dismissPwaToast">✕</button>
+    <button class="dismiss" aria-label="Dismiss" @click="dismissPwaToast">
+      ✕
+    </button>
   </div>
 </template>
 

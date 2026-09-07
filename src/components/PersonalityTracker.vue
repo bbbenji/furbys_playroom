@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useFurbyStore } from '../stores/furby'
+import { useFurbyStore } from "../stores/furby";
 
-const store = useFurbyStore()
+const store = useFurbyStore();
 
 function formatTime(ts: number): string {
-  return new Date(ts).toLocaleString()
+  return new Date(ts).toLocaleString();
 }
 </script>
 
@@ -12,21 +12,31 @@ function formatTime(ts: number): string {
   <section class="personality">
     <div class="header">
       <h2>Personality</h2>
-      <button v-if="store.personalityHistory.length > 0" class="clear" @click="store.clearPersonalityHistory">
+      <button
+        v-if="store.personalityHistory.length > 0"
+        class="clear"
+        @click="store.clearPersonalityHistory"
+      >
         Clear
       </button>
     </div>
 
     <div v-if="store.currentPersonality" class="current">
       <span class="current-label">{{ store.currentPersonality.label }}</span>
-      <span class="current-time">since {{ formatTime(store.currentPersonality.at) }}</span>
+      <span class="current-time"
+        >since {{ formatTime(store.currentPersonality.at) }}</span
+      >
     </div>
     <p v-else class="empty">
-      Unknown yet — send <strong>Ask personality</strong> with the mic listening to find out.
+      Unknown yet - send <strong>Ask personality</strong> with the mic listening
+      to find out.
     </p>
 
     <ul v-if="store.personalityHistory.length > 1" class="history">
-      <li v-for="sighting in store.personalityHistory.slice(1)" :key="sighting.at">
+      <li
+        v-for="sighting in store.personalityHistory.slice(1)"
+        :key="sighting.at"
+      >
         <span>{{ sighting.label }}</span>
         <span class="time">{{ formatTime(sighting.at) }}</span>
       </li>

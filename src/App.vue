@@ -128,7 +128,7 @@ onMounted(() => {
     <a href="https://github.com/iafan/Hacksby" target="_blank" rel="noreferrer"
       >Hacksby</a
     >
-    project. Educational use — no affiliation with Hasbro.
+    project. Educational use - no affiliation with Hasbro.
   </footer>
 
   <PwaToast />

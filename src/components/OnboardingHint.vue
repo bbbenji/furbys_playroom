@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref } from "vue";
 
-const STORAGE_KEY = 'furby-console:onboarding-dismissed'
-const dismissed = ref(localStorage.getItem(STORAGE_KEY) === '1')
+const STORAGE_KEY = "furby-console:onboarding-dismissed";
+const dismissed = ref(localStorage.getItem(STORAGE_KEY) === "1");
 
 function dismiss() {
-  dismissed.value = true
-  localStorage.setItem(STORAGE_KEY, '1')
+  dismissed.value = true;
+  localStorage.setItem(STORAGE_KEY, "1");
 }
 </script>
 
 <template>
   <p v-if="!dismissed" class="hint">
-    New here? Furby ignores most commands unless it's awake — tap
+    New here? Furby ignores most commands unless it's awake - tap
     <strong>Enable listening mode</strong> first.
     <button class="dismiss" aria-label="Dismiss" @click="dismiss">✕</button>
   </p>

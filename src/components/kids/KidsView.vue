@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import { useFurbyStore } from '../../stores/furby'
-import { vibrate } from './haptics'
-import KidFurbyMascot from './KidFurbyMascot.vue'
-import { speak } from './speech'
+import { computed, ref, watch } from "vue";
+import { useFurbyStore } from "../../stores/furby";
+import { vibrate } from "./haptics";
+import KidFurbyMascot from "./KidFurbyMascot.vue";
+import { speak } from "./speech";
 import {
   playBoing,
   playChew,
@@ -11,194 +11,413 @@ import {
   playFartSound,
   playGiggle,
   playPop,
-} from './soundFx'
+} from "./soundFx";
 
-const store = useFurbyStore()
-type TabKey = 'food' | 'tricks' | 'music' | 'mood'
-const activeTab = ref<TabKey>('tricks')
+const store = useFurbyStore();
+type TabKey = "food" | "tricks" | "music" | "mood";
+const activeTab = ref<TabKey>("tricks");
 
-const KIDS_ONBOARDING_KEY = 'furby-console:kids-onboarding-dismissed:v1'
-const onboardingDismissed = ref(localStorage.getItem(KIDS_ONBOARDING_KEY) === '1')
+const KIDS_ONBOARDING_KEY = "furby-console:kids-onboarding-dismissed:v1";
+const onboardingDismissed = ref(
+  localStorage.getItem(KIDS_ONBOARDING_KEY) === "1",
+);
 
 function dismissOnboarding() {
-  onboardingDismissed.value = true
+  onboardingDismissed.value = true;
   try {
-    localStorage.setItem(KIDS_ONBOARDING_KEY, '1')
+    localStorage.setItem(KIDS_ONBOARDING_KEY, "1");
   } catch {
     // ignore
   }
 }
 
 interface KidItem {
-  id: number
-  title: string
-  subtitle: string
-  icon: string
-  color: string
-  sound?: 'chew' | 'fart' | 'boing' | 'giggle' | 'chime' | 'pop'
+  id: number;
+  title: string;
+  subtitle: string;
+  icon: string;
+  color: string;
+  sound?: "chew" | "fart" | "boing" | "giggle" | "chime" | "pop";
 }
 
 const FOOD_ITEMS: KidItem[] = [
-  { id: 350, title: 'Pizza Party', subtitle: 'Yummy meal!', icon: '🍕', color: '#f59e0b', sound: 'chew' },
-  { id: 352, title: 'Cookie Snack', subtitle: 'Crunch crunch!', icon: '🍪', color: '#d97706', sound: 'chew' },
-  { id: 353, title: 'Sweet Banana', subtitle: 'Soft & tasty', icon: '🍌', color: '#eab308', sound: 'chew' },
-  { id: 354, title: 'Spaghetti', subtitle: 'Slurp it up!', icon: '🍝', color: '#ef4444', sound: 'chew' },
-  { id: 355, title: 'Fruit Juice', subtitle: 'Gulp gulp gulp!', icon: '🧃', color: '#06b6d4', sound: 'chew' },
-  { id: 356, title: 'Funny Bone', subtitle: 'Blehh! Not tasty', icon: '🦴', color: '#94a3b8', sound: 'boing' },
-  { id: 358, title: 'Spicy Pepper', subtitle: 'Hot hot hot!', icon: '🌶️', color: '#dc2626', sound: 'chew' },
-  { id: 359, title: 'Big Veggie', subtitle: 'Eat your greens!', icon: '🥦', color: '#16a34a', sound: 'chew' },
-  { id: 372, title: 'Magic Beans', subtitle: 'Ooh la la!', icon: '🫘', color: '#8b5cf6', sound: 'chew' },
-  { id: 417, title: 'Toilet Paper', subtitle: 'Hey! That\'s not food!', icon: '🧻', color: '#ec4899', sound: 'boing' },
-]
+  {
+    id: 350,
+    title: "Pizza Party",
+    subtitle: "Yummy meal!",
+    icon: "🍕",
+    color: "#f59e0b",
+    sound: "chew",
+  },
+  {
+    id: 352,
+    title: "Cookie Snack",
+    subtitle: "Crunch crunch!",
+    icon: "🍪",
+    color: "#d97706",
+    sound: "chew",
+  },
+  {
+    id: 353,
+    title: "Sweet Banana",
+    subtitle: "Soft & tasty",
+    icon: "🍌",
+    color: "#eab308",
+    sound: "chew",
+  },
+  {
+    id: 354,
+    title: "Spaghetti",
+    subtitle: "Slurp it up!",
+    icon: "🍝",
+    color: "#ef4444",
+    sound: "chew",
+  },
+  {
+    id: 355,
+    title: "Fruit Juice",
+    subtitle: "Gulp gulp gulp!",
+    icon: "🧃",
+    color: "#06b6d4",
+    sound: "chew",
+  },
+  {
+    id: 356,
+    title: "Funny Bone",
+    subtitle: "Blehh! Not tasty",
+    icon: "🦴",
+    color: "#94a3b8",
+    sound: "boing",
+  },
+  {
+    id: 358,
+    title: "Spicy Pepper",
+    subtitle: "Hot hot hot!",
+    icon: "🌶️",
+    color: "#dc2626",
+    sound: "chew",
+  },
+  {
+    id: 359,
+    title: "Big Veggie",
+    subtitle: "Eat your greens!",
+    icon: "🥦",
+    color: "#16a34a",
+    sound: "chew",
+  },
+  {
+    id: 372,
+    title: "Magic Beans",
+    subtitle: "Ooh la la!",
+    icon: "🫘",
+    color: "#8b5cf6",
+    sound: "chew",
+  },
+  {
+    id: 417,
+    title: "Toilet Paper",
+    subtitle: "Hey! That's not food!",
+    icon: "🧻",
+    color: "#ec4899",
+    sound: "boing",
+  },
+];
 
 const TRICK_ITEMS: KidItem[] = [
-  { id: 865, title: 'Furby Fart', subtitle: 'Toot toot!', icon: '💨', color: '#10b981', sound: 'fart' },
-  { id: 864, title: 'Giant Burp', subtitle: 'Excuse me!', icon: '🫧', color: '#06b6d4', sound: 'boing' },
-  { id: 863, title: 'Giggle & Laugh', subtitle: 'Hahaha!', icon: '😂', color: '#f59e0b', sound: 'giggle' },
-  { id: 866, title: 'Happy Purr', subtitle: 'So cuddly!', icon: '🐱', color: '#ec4899', sound: 'chime' },
-  { id: 867, title: 'Big Sneeze', subtitle: 'Achoo!', icon: '🤧', color: '#8b5cf6', sound: 'boing' },
-  { id: 868, title: 'Sing a Song', subtitle: 'La la la!', icon: '🎤', color: '#3b82f6', sound: 'chime' },
-  { id: 869, title: 'Tell a Secret', subtitle: 'Chatterbox!', icon: '🗣️', color: '#a855f7', sound: 'pop' },
-  { id: 862, title: 'Nap Time', subtitle: 'Go to sleep', icon: '😴', color: '#6366f1', sound: 'pop' },
-]
+  {
+    id: 865,
+    title: "Furby Fart",
+    subtitle: "Toot toot!",
+    icon: "💨",
+    color: "#10b981",
+    sound: "fart",
+  },
+  {
+    id: 864,
+    title: "Giant Burp",
+    subtitle: "Excuse me!",
+    icon: "🫧",
+    color: "#06b6d4",
+    sound: "boing",
+  },
+  {
+    id: 863,
+    title: "Giggle & Laugh",
+    subtitle: "Hahaha!",
+    icon: "😂",
+    color: "#f59e0b",
+    sound: "giggle",
+  },
+  {
+    id: 866,
+    title: "Happy Purr",
+    subtitle: "So cuddly!",
+    icon: "🐱",
+    color: "#ec4899",
+    sound: "chime",
+  },
+  {
+    id: 867,
+    title: "Big Sneeze",
+    subtitle: "Achoo!",
+    icon: "🤧",
+    color: "#8b5cf6",
+    sound: "boing",
+  },
+  {
+    id: 868,
+    title: "Sing a Song",
+    subtitle: "La la la!",
+    icon: "🎤",
+    color: "#3b82f6",
+    sound: "chime",
+  },
+  {
+    id: 869,
+    title: "Tell a Secret",
+    subtitle: "Chatterbox!",
+    icon: "🗣️",
+    color: "#a855f7",
+    sound: "pop",
+  },
+  {
+    id: 862,
+    title: "Nap Time",
+    subtitle: "Go to sleep",
+    icon: "😴",
+    color: "#6366f1",
+    sound: "pop",
+  },
+];
 
 const MUSIC_ITEMS: KidItem[] = [
-  { id: 721, title: 'Party Jam A', subtitle: 'Furby dance beat!', icon: '🎵', color: '#ec4899', sound: 'chime' },
-  { id: 722, title: 'Boogie Beat B', subtitle: 'Groovy tunes!', icon: '🎷', color: '#f59e0b', sound: 'chime' },
-  { id: 723, title: 'Rock Anthem C', subtitle: 'Guitar vibes!', icon: '🎸', color: '#ef4444', sound: 'chime' },
-  { id: 724, title: 'Disco Fever D', subtitle: 'Spin and dance!', icon: '🪩', color: '#8b5cf6', sound: 'chime' },
-  { id: 889, title: 'Ahh-Tahoo!', subtitle: 'Special victory cheer!', icon: '🌟', color: '#eab308', sound: 'giggle' },
-  { id: 718, title: 'Sleepy Yawn', subtitle: 'Yaaawn...', icon: '🥱', color: '#64748b', sound: 'pop' },
-]
+  {
+    id: 721,
+    title: "Party Jam A",
+    subtitle: "Furby dance beat!",
+    icon: "🎵",
+    color: "#ec4899",
+    sound: "chime",
+  },
+  {
+    id: 722,
+    title: "Boogie Beat B",
+    subtitle: "Groovy tunes!",
+    icon: "🎷",
+    color: "#f59e0b",
+    sound: "chime",
+  },
+  {
+    id: 723,
+    title: "Rock Anthem C",
+    subtitle: "Guitar vibes!",
+    icon: "🎸",
+    color: "#ef4444",
+    sound: "chime",
+  },
+  {
+    id: 724,
+    title: "Disco Fever D",
+    subtitle: "Spin and dance!",
+    icon: "🪩",
+    color: "#8b5cf6",
+    sound: "chime",
+  },
+  {
+    id: 889,
+    title: "Ahh-Tahoo!",
+    subtitle: "Special victory cheer!",
+    icon: "🌟",
+    color: "#eab308",
+    sound: "giggle",
+  },
+  {
+    id: 718,
+    title: "Sleepy Yawn",
+    subtitle: "Yaaawn...",
+    icon: "🥱",
+    color: "#64748b",
+    sound: "pop",
+  },
+];
 
-const ALL_ITEMS: KidItem[] = [...TRICK_ITEMS, ...FOOD_ITEMS, ...MUSIC_ITEMS]
-const ALL_ITEM_IDS = new Set(ALL_ITEMS.map((item) => item.id))
-const TOTAL_DISCOVERABLE = ALL_ITEMS.length
+const ALL_ITEMS: KidItem[] = [...TRICK_ITEMS, ...FOOD_ITEMS, ...MUSIC_ITEMS];
+const ALL_ITEM_IDS = new Set(ALL_ITEMS.map((item) => item.id));
+const TOTAL_DISCOVERABLE = ALL_ITEMS.length;
 const ITEM_TAB: Record<number, TabKey> = Object.fromEntries([
-  ...TRICK_ITEMS.map((item) => [item.id, 'tricks' as TabKey]),
-  ...FOOD_ITEMS.map((item) => [item.id, 'food' as TabKey]),
-  ...MUSIC_ITEMS.map((item) => [item.id, 'music' as TabKey]),
-])
+  ...TRICK_ITEMS.map((item) => [item.id, "tricks" as TabKey]),
+  ...FOOD_ITEMS.map((item) => [item.id, "food" as TabKey]),
+  ...MUSIC_ITEMS.map((item) => [item.id, "music" as TabKey]),
+]);
 
 const discoveredIds = computed(() => {
-  const seen = new Set<number>()
+  const seen = new Set<number>();
   for (const entry of store.log) {
-    if (entry.direction === 'tx' && ALL_ITEM_IDS.has(entry.command)) seen.add(entry.command)
+    if (entry.direction === "tx" && ALL_ITEM_IDS.has(entry.command))
+      seen.add(entry.command);
   }
-  return seen
-})
-const discoveredCount = computed(() => discoveredIds.value.size)
-const discoveryPercent = computed(() => Math.round((discoveredCount.value / TOTAL_DISCOVERABLE) * 100))
+  return seen;
+});
+const discoveredCount = computed(() => discoveredIds.value.size);
+const discoveryPercent = computed(() =>
+  Math.round((discoveredCount.value / TOTAL_DISCOVERABLE) * 100),
+);
 
-const justDiscovered = ref(false)
-let discoveryToastTimer: ReturnType<typeof setTimeout> | null = null
+const justDiscovered = ref(false);
+let discoveryToastTimer: ReturnType<typeof setTimeout> | null = null;
 watch(discoveredCount, (next, prev) => {
-  if (next <= prev) return
-  justDiscovered.value = true
-  if (discoveryToastTimer) clearTimeout(discoveryToastTimer)
+  if (next <= prev) return;
+  justDiscovered.value = true;
+  if (discoveryToastTimer) clearTimeout(discoveryToastTimer);
   discoveryToastTimer = setTimeout(() => {
-    justDiscovered.value = false
-  }, 2200)
-})
+    justDiscovered.value = false;
+  }, 2200);
+});
 
 function playKidSound(sound?: string) {
-  if (!store.soundFxEnabled) return
+  if (!store.soundFxEnabled) return;
   switch (sound) {
-    case 'chew': playChew(); break
-    case 'fart': playFartSound(); break
-    case 'boing': playBoing(); break
-    case 'giggle': playGiggle(); break
-    case 'chime': playChime(); break
-    default: playPop(); break
+    case "chew":
+      playChew();
+      break;
+    case "fart":
+      playFartSound();
+      break;
+    case "boing":
+      playBoing();
+      break;
+    case "giggle":
+      playGiggle();
+      break;
+    case "chime":
+      playChime();
+      break;
+    default:
+      playPop();
+      break;
   }
 }
 
 function handleItemClick(item: KidItem) {
-  vibrate(15)
-  playKidSound(item.sound)
-  if (store.readAloudEnabled) speak(item.title)
-  store.send(item.id)
+  vibrate(15);
+  playKidSound(item.sound);
+  if (store.readAloudEnabled) speak(item.title);
+  store.send(item.id);
 }
 
 function handleSurprise() {
-  vibrate([10, 40, 10])
-  const undiscovered = ALL_ITEMS.filter((item) => !discoveredIds.value.has(item.id))
-  const pool = undiscovered.length > 0 ? undiscovered : ALL_ITEMS
-  const item = pool[Math.floor(Math.random() * pool.length)]
-  activeTab.value = ITEM_TAB[item.id]
-  handleItemClick(item)
+  vibrate([10, 40, 10]);
+  const undiscovered = ALL_ITEMS.filter(
+    (item) => !discoveredIds.value.has(item.id),
+  );
+  const pool = undiscovered.length > 0 ? undiscovered : ALL_ITEMS;
+  const item = pool[Math.floor(Math.random() * pool.length)];
+  activeTab.value = ITEM_TAB[item.id];
+  handleItemClick(item);
 }
 
 function handleWakeToggle() {
-  vibrate(20)
+  vibrate(20);
   if (store.soundFxEnabled) {
-    if (!store.keepAliveActive) playChime()
-    else playPop()
+    if (!store.keepAliveActive) playChime();
+    else playPop();
   }
-  store.toggleKeepAlive()
+  store.toggleKeepAlive();
 }
 
 function handleMicToggle() {
-  vibrate(12)
-  if (store.soundFxEnabled) playPop()
-  store.toggleMic()
+  vibrate(12);
+  if (store.soundFxEnabled) playPop();
+  store.toggleMic();
 }
 
 function handleSoundFxToggle() {
-  vibrate(12)
-  playPop()
-  store.toggleSoundFx()
+  vibrate(12);
+  playPop();
+  store.toggleSoundFx();
 }
 
 function handleReadAloudToggle() {
-  vibrate(12)
-  if (store.soundFxEnabled) playPop()
-  store.toggleReadAloud()
+  vibrate(12);
+  if (store.soundFxEnabled) playPop();
+  store.toggleReadAloud();
 }
 
 function handleHapticsToggle() {
-  if (store.soundFxEnabled) playPop()
-  store.toggleHaptics()
-  if (store.hapticsEnabled) vibrate(12)
+  if (store.soundFxEnabled) playPop();
+  store.toggleHaptics();
+  if (store.hapticsEnabled) vibrate(12);
 }
 
 async function handleMoodCheck() {
-  vibrate(15)
-  if (store.soundFxEnabled) playChime()
-  if (!store.micActive) await store.toggleMic()
-  store.send(813)
+  vibrate(15);
+  if (store.soundFxEnabled) playChime();
+  if (!store.micActive) await store.toggleMic();
+  store.send(813);
 }
 
 interface PersonalityBadge {
-  title: string
-  emoji: string
-  desc: string
-  badgeColor: string
+  title: string;
+  emoji: string;
+  desc: string;
+  badgeColor: string;
 }
 
 const personalityBadge = computed<PersonalityBadge | null>(() => {
-  const personality = store.currentPersonality
-  return personality ? getPersonalityBadge(personality.id, personality.label) : null
-})
+  const personality = store.currentPersonality;
+  return personality
+    ? getPersonalityBadge(personality.id, personality.label)
+    : null;
+});
 
 watch(personalityBadge, (badge) => {
-  if (badge && store.readAloudEnabled) speak(`Furby is a ${badge.title}!`)
-})
+  if (badge && store.readAloudEnabled) speak(`Furby is a ${badge.title}!`);
+});
 
 function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   switch (id) {
     case 901:
-      return { title: 'Princess Furby', emoji: '👑', desc: 'Loves sweet treats, royal pampering, and good manners!', badgeColor: '#ec4899' }
+      return {
+        title: "Princess Furby",
+        emoji: "👑",
+        desc: "Loves sweet treats, royal pampering, and good manners!",
+        badgeColor: "#ec4899",
+      };
     case 902:
-      return { title: 'Superstar Diva', emoji: '✨', desc: 'Loves the spotlight, loud singing, and big applause!', badgeColor: '#f59e0b' }
+      return {
+        title: "Superstar Diva",
+        emoji: "✨",
+        desc: "Loves the spotlight, loud singing, and big applause!",
+        badgeColor: "#f59e0b",
+      };
     case 903:
-      return { title: 'Brave Warrior', emoji: '⚔️', desc: 'Karate chops and roars! Always ready for high adventure!', badgeColor: '#ef4444' }
+      return {
+        title: "Brave Warrior",
+        emoji: "⚔️",
+        desc: "Karate chops and roars! Always ready for high adventure!",
+        badgeColor: "#ef4444",
+      };
     case 904:
-      return { title: 'Silly Joker', emoji: '🃏', desc: 'Loves laughs, funny noises, giggles, and silly pranks!', badgeColor: '#10b981' }
+      return {
+        title: "Silly Joker",
+        emoji: "🃏",
+        desc: "Loves laughs, funny noises, giggles, and silly pranks!",
+        badgeColor: "#10b981",
+      };
     case 905:
-      return { title: 'Gossip Queen', emoji: '💅', desc: 'Chatterbox! Always has the latest news and secrets!', badgeColor: '#8b5cf6' }
+      return {
+        title: "Gossip Queen",
+        emoji: "💅",
+        desc: "Chatterbox! Always has the latest news and secrets!",
+        badgeColor: "#8b5cf6",
+      };
     default:
-      return { title: label || 'Playful Furby', emoji: '🐣', desc: 'Happy, curious, and loves playing songs and games!', badgeColor: '#06b6d4' }
+      return {
+        title: label || "Playful Furby",
+        emoji: "🐣",
+        desc: "Happy, curious, and loves playing songs and games!",
+        badgeColor: "#06b6d4",
+      };
   }
 }
 </script>
@@ -210,7 +429,8 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
       <span class="onboarding-emoji" aria-hidden="true">👋</span>
       <p>
         First time here? Tap <strong>Wake Up Furby!</strong> below, then explore
-        <strong>Silly Tricks</strong>, <strong>Feed Furby</strong>, and <strong>Dance Party</strong>
+        <strong>Silly Tricks</strong>, <strong>Feed Furby</strong>, and
+        <strong>Dance Party</strong>
         to hear magic sounds!
       </p>
       <button
@@ -225,24 +445,38 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
     <!-- Top Wake-Up & Listening Station -->
     <div class="wake-station">
-      <div class="wake-card" :class="{ awake: store.keepAliveActive }" @click="handleWakeToggle">
+      <div
+        class="wake-card"
+        :class="{ awake: store.keepAliveActive }"
+        @click="handleWakeToggle"
+      >
         <div class="wake-icon-wrap" aria-hidden="true">
-          <span class="wake-icon">{{ store.keepAliveActive ? '🌟' : '💤' }}</span>
+          <span class="wake-icon">{{
+            store.keepAliveActive ? "🌟" : "💤"
+          }}</span>
         </div>
         <div class="wake-text">
           <h2 class="wake-title">
-            {{ store.keepAliveActive ? 'Furby is Awake & Ready!' : 'Wake Up Furby!' }}
+            {{
+              store.keepAliveActive
+                ? "Furby is Awake & Ready!"
+                : "Wake Up Furby!"
+            }}
           </h2>
           <p class="wake-subtitle">
             {{
               store.keepAliveActive
-                ? 'Furby is listening for your commands (tap to let sleep)'
-                : 'Tap here so Furby stays awake and ready to play!'
+                ? "Furby is listening for your commands (tap to let sleep)"
+                : "Tap here so Furby stays awake and ready to play!"
             }}
           </p>
         </div>
-        <button type="button" class="wake-btn" :class="{ awake: store.keepAliveActive }">
-          {{ store.keepAliveActive ? 'Sleep 💤' : 'Wake Up! ✨' }}
+        <button
+          type="button"
+          class="wake-btn"
+          :class="{ awake: store.keepAliveActive }"
+        >
+          {{ store.keepAliveActive ? "Sleep 💤" : "Wake Up! ✨" }}
         </button>
       </div>
 
@@ -252,10 +486,16 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           class="control-pill"
           :class="{ active: store.micActive }"
           @click="handleMicToggle"
-          :title="store.micActive ? 'Mic listening to Furby' : 'Enable mic to hear Furby'"
+          :title="
+            store.micActive
+              ? 'Mic listening to Furby'
+              : 'Enable mic to hear Furby'
+          "
         >
           <span class="pill-icon">👂</span>
-          <span>{{ store.micActive ? 'Listening to Furby' : 'Listen to Furby' }}</span>
+          <span>{{
+            store.micActive ? "Listening to Furby" : "Listen to Furby"
+          }}</span>
         </button>
 
         <button
@@ -264,15 +504,21 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           @click="handleSoundFxToggle"
           :title="store.soundFxEnabled ? 'Sound FX On' : 'Sound FX Muted'"
         >
-          <span class="pill-icon">{{ store.soundFxEnabled ? '🔊' : '🔇' }}</span>
-          <span>{{ store.soundFxEnabled ? 'Sound FX On' : 'Muted' }}</span>
+          <span class="pill-icon">{{
+            store.soundFxEnabled ? "🔊" : "🔇"
+          }}</span>
+          <span>{{ store.soundFxEnabled ? "Sound FX On" : "Muted" }}</span>
         </button>
 
         <button
           class="control-pill read-pill"
           :class="{ active: store.readAloudEnabled }"
           @click="handleReadAloudToggle"
-          :title="store.readAloudEnabled ? 'Furby will say each sound out loud' : 'Turn on read-aloud for each sound'"
+          :title="
+            store.readAloudEnabled
+              ? 'Furby will say each sound out loud'
+              : 'Turn on read-aloud for each sound'
+          "
         >
           <span class="pill-icon">🗣️</span>
           <span>Read Aloud</span>
@@ -282,9 +528,15 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           class="control-pill haptics-pill"
           :class="{ active: store.hapticsEnabled }"
           @click="handleHapticsToggle"
-          :title="store.hapticsEnabled ? 'Buzzes on every tap' : 'Turn on buzzing for taps'"
+          :title="
+            store.hapticsEnabled
+              ? 'Buzzes on every tap'
+              : 'Turn on buzzing for taps'
+          "
         >
-          <span class="pill-icon">{{ store.hapticsEnabled ? '📳' : '📴' }}</span>
+          <span class="pill-icon">{{
+            store.hapticsEnabled ? "📳" : "📴"
+          }}</span>
           <span>Buzz</span>
         </button>
       </div>
@@ -314,12 +566,15 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           <span>Sound Collection</span>
         </div>
         <div class="discovery-bar-track">
-          <div class="discovery-bar-fill" :style="{ width: discoveryPercent + '%' }"></div>
+          <div
+            class="discovery-bar-fill"
+            :style="{ width: discoveryPercent + '%' }"
+          ></div>
         </div>
         <p class="discovery-count" :class="{ celebrate: justDiscovered }">
           {{
             justDiscovered
-              ? '🎉 New sound discovered!'
+              ? "🎉 New sound discovered!"
               : `${discoveredCount} / ${TOTAL_DISCOVERABLE} sounds found!`
           }}
         </p>
@@ -480,7 +735,10 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         </div>
 
         <div v-if="personalityBadge" class="personality-card">
-          <div class="personality-badge" :style="{ '--badge-color': personalityBadge.badgeColor }">
+          <div
+            class="personality-badge"
+            :style="{ '--badge-color': personalityBadge.badgeColor }"
+          >
             <span class="badge-emoji">{{ personalityBadge.emoji }}</span>
             <div class="badge-info">
               <h4 class="badge-title">{{ personalityBadge.title }}</h4>
@@ -492,7 +750,8 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           <span class="empty-icon">💭</span>
           <p>
             Furby hasn't told us its personality yet! Tap
-            <strong>Ask Furby's Mood</strong> above — we'll turn on listening for you.
+            <strong>Ask Furby's Mood</strong> above - we'll turn on listening
+            for you.
           </p>
         </div>
       </div>
@@ -524,7 +783,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   gap: 0.6rem;
   padding: 0.75rem 0.9rem;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(236, 72, 153, 0.14));
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.18),
+    rgba(236, 72, 153, 0.14)
+  );
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
@@ -573,7 +836,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   gap: 1rem;
   padding: 1rem 1.2rem;
   border-radius: 22px;
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(236, 72, 153, 0.2));
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.25),
+    rgba(236, 72, 153, 0.2)
+  );
   border: 2px solid rgba(168, 85, 247, 0.4);
   box-shadow: 0 8px 24px rgba(124, 58, 237, 0.15);
   cursor: pointer;
@@ -588,7 +855,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 .wake-card.awake {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(6, 182, 212, 0.2));
+  background: linear-gradient(
+    135deg,
+    rgba(16, 185, 129, 0.2),
+    rgba(6, 182, 212, 0.2)
+  );
   border-color: rgba(16, 185, 129, 0.5);
   box-shadow: 0 8px 24px rgba(16, 185, 129, 0.2);
 }
@@ -720,7 +991,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   gap: 0.6rem;
   padding: 0.6rem 1rem;
   border-radius: 14px;
-  background: linear-gradient(90deg, rgba(245, 158, 11, 0.25), rgba(236, 72, 153, 0.25));
+  background: linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.25),
+    rgba(236, 72, 153, 0.25)
+  );
   border: 1px solid rgba(245, 158, 11, 0.5);
   color: var(--text);
   font-size: 0.9rem;
@@ -729,8 +1004,14 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 @keyframes pulseBeaming {
-  0% { transform: scale(0.99); opacity: 0.85; }
-  100% { transform: scale(1.01); opacity: 1; }
+  0% {
+    transform: scale(0.99);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.01);
+    opacity: 1;
+  }
 }
 
 .beaming-pulse {
@@ -743,8 +1024,14 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 @keyframes beamingDot {
-  0% { opacity: 0.4; transform: scale(0.8); }
-  100% { opacity: 1; transform: scale(1.15); }
+  0% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
 }
 
 /* Sound Collection & Surprise Me */
@@ -800,9 +1087,15 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 @keyframes celebratePop {
-  0% { transform: scale(0.9); }
-  50% { transform: scale(1.08); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .surprise-btn {
@@ -878,7 +1171,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, rgba(124, 58, 237, 0.3), rgba(236, 72, 153, 0.25));
+  background: linear-gradient(
+    135deg,
+    rgba(124, 58, 237, 0.3),
+    rgba(236, 72, 153, 0.25)
+  );
   color: var(--text);
   box-shadow: 0 4px 14px rgba(124, 58, 237, 0.2);
 }
@@ -943,8 +1240,12 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 @keyframes cardBounce {
-  0% { transform: scale(0.96); }
-  100% { transform: scale(1.02); }
+  0% {
+    transform: scale(0.96);
+  }
+  100% {
+    transform: scale(1.02);
+  }
 }
 
 .card-emoji {
@@ -989,7 +1290,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   text-align: center;
   padding: 1.4rem 1.2rem;
   border-radius: 22px;
-  background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(6, 182, 212, 0.15));
+  background: linear-gradient(
+    135deg,
+    rgba(139, 92, 246, 0.15),
+    rgba(6, 182, 212, 0.15)
+  );
   border: 1px solid rgba(139, 92, 246, 0.3);
 }
 
