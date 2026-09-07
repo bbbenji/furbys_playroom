@@ -61,6 +61,7 @@ function formatTime(ts: number): string {
   gap: 0.3rem;
   max-height: 260px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .log li {
   display: flex;

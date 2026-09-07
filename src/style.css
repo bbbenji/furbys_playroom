@@ -43,8 +43,21 @@ body {
 #app {
   max-width: 720px;
   margin: 0 auto;
-  padding: 1.2rem;
+  padding: max(1.2rem, env(safe-area-inset-top)) max(1.2rem, env(safe-area-inset-right))
+    max(1.2rem, env(safe-area-inset-bottom)) max(1.2rem, env(safe-area-inset-left));
   min-height: 100vh;
+  /* dvh accounts for mobile browser toolbars showing/hiding, instead of
+     jumping between the largest and smallest viewport like 100vh does.
+     Browsers without dvh support just keep the 100vh above. */
+  min-height: 100dvh;
+}
+
+button,
+[role="button"],
+[role="tab"] {
+  /* Removes the ~300ms tap delay and stray double-tap-to-zoom on touch
+     browsers for anything actually meant to be tapped once. */
+  touch-action: manipulation;
 }
 
 .view-fade-enter-active,

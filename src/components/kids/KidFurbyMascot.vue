@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useFurbyStore } from "../../stores/furby";
 import { vibrate } from "./haptics";
 import { playGiggle } from "./soundFx";
@@ -7,6 +7,39 @@ import { playGiggle } from "./soundFx";
 const store = useFurbyStore();
 const isWiggling = ref(false);
 const showHearts = ref(false);
+const isBlinking = ref(false);
+
+let blinkTimer: ReturnType<typeof setTimeout> | null = null;
+let blinkCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+function closeEyes(holdMs: number) {
+  isBlinking.value = true;
+  blinkCloseTimer = setTimeout(() => {
+    isBlinking.value = false;
+  }, holdMs);
+}
+
+function scheduleNextBlink() {
+  // Real blinks land roughly every 2-6s, not on a fixed beat - randomizing
+  // the gap keeps it from reading as a metronome.
+  const gap = 2200 + Math.random() * 4200;
+  blinkTimer = setTimeout(() => {
+    if (store.mascotMood !== "sleeping") {
+      closeEyes(90 + Math.random() * 60);
+      // Real eyes occasionally throw in a quick second blink right after the first.
+      if (Math.random() < 0.15) {
+        setTimeout(() => closeEyes(90), 220);
+      }
+    }
+    scheduleNextBlink();
+  }, gap);
+}
+
+onMounted(scheduleNextBlink);
+onUnmounted(() => {
+  if (blinkTimer) clearTimeout(blinkTimer);
+  if (blinkCloseTimer) clearTimeout(blinkCloseTimer);
+});
 
 function onFurbyClick() {
   vibrate(25);
@@ -36,6 +69,7 @@ function onFurbyClick() {
           sending: store.sending !== null,
           awake: store.keepAliveActive,
           wiggle: isWiggling,
+          blinking: isBlinking,
         },
       ]"
       role="button"
@@ -514,26 +548,28 @@ function onFurbyClick() {
   }
 }
 
-/* Eyes Blinking */
+/* Eyes Blinking - timing is randomized in script (scheduleNextBlink), with
+   occasional double-blinks; this just handles the open/close motion itself.
+   Closing is quick, opening is a touch slower, matching how real blinks move. */
 .eyelid {
-  transform-origin: center;
   transform: scaleY(0);
-  transition: transform 0.1s ease;
+  transition: transform 0.13s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.furby-stage:not(.sleeping) .eyelid {
-  animation: blinkEyelids 4.8s infinite;
+/* Anchored to the top edge of each eye socket (cy=86, ry=21 -> top=65) so
+   the lid sweeps down from the top like a real blink, instead of growing
+   outward from the center like an aperture. */
+.eyelid-left {
+  transform-origin: 78px 65px;
 }
 
-@keyframes blinkEyelids {
-  0%,
-  93%,
-  100% {
-    transform: scaleY(0);
-  }
-  96% {
-    transform: scaleY(1);
-  }
+.eyelid-right {
+  transform-origin: 122px 65px;
+}
+
+.furby-stage.blinking .eyelid {
+  transform: scaleY(1);
+  transition: transform 0.08s cubic-bezier(0.4, 0, 1, 1);
 }
 
 /* Mood behaviors */

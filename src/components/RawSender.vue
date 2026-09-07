@@ -50,6 +50,7 @@ input {
 }
 button {
   padding: 0.6rem 1.1rem;
+  min-height: 44px;
   border-radius: 8px;
   border: none;
   background: var(--accent);

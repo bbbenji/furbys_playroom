@@ -18,7 +18,7 @@ import { dismissPwaToast, needRefresh, offlineReady, reloadApp } from "../pwa";
   position: fixed;
   left: 1rem;
   right: 1rem;
-  bottom: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
   max-width: 480px;
   margin: 0 auto;
   display: flex;
@@ -46,12 +46,18 @@ import { dismissPwaToast, needRefresh, offlineReady, reloadApp } from "../pwa";
   cursor: pointer;
 }
 .dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -0.6rem;
+  margin-right: -0.4rem;
   border: none;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  padding: 0.2rem;
 }
 </style>

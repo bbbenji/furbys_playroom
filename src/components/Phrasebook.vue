@@ -97,6 +97,7 @@ h2 {
   gap: 0.3rem;
   max-height: 320px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .entries li {
   display: flex;
@@ -133,7 +134,11 @@ h2 {
 }
 .send {
   flex-shrink: 0;
-  padding: 0.3rem 0.6rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0.4rem 0.9rem;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
@@ -148,6 +153,9 @@ h2 {
 }
 .more {
   margin-top: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
   border: none;
   background: transparent;
   color: var(--accent);

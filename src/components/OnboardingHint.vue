@@ -33,13 +33,19 @@ function dismiss() {
 }
 .dismiss {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin-block: -0.6rem;
+  margin-right: -0.4rem;
   border: none;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  padding: 0.2rem;
   flex-shrink: 0;
 }
 </style>

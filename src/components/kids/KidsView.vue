@@ -552,11 +552,14 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
     <!-- Interactive Furby Mascot -->
     <KidFurbyMascot />
 
-    <!-- Sending Banner -->
-    <div v-if="store.sending !== null" class="beaming-banner">
-      <span class="beaming-pulse"></span>
-      <span>📡 Beaming magic sound to Furby... Keep speaker close!</span>
-    </div>
+    <!-- Sending Banner: fixed/overlaid so it doesn't push the page down
+         when it appears and back up when it disappears. -->
+    <Transition name="beam-fade">
+      <div v-if="store.sending !== null" class="beaming-banner">
+        <span class="beaming-pulse"></span>
+        <span>📡 Beaming magic sound to Furby... Keep speaker close!</span>
+      </div>
+    </Transition>
 
     <!-- Sound Collection & Surprise Me -->
     <div class="discovery-panel">
@@ -819,13 +822,18 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 .onboarding-dismiss {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -0.6rem -0.5rem -0.6rem 0;
   border: none;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
   font-size: 1rem;
   line-height: 1;
-  padding: 0.2rem;
 }
 
 .onboarding-dismiss:hover {
@@ -927,15 +935,39 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   transform: scale(0.95);
 }
 
+/* On narrow phones the icon + title + pill button can't all fit on one
+   row - the title was wrapping to one word per line. Let the button drop
+   to its own full-width row instead. */
+@media (max-width: 480px) {
+  .wake-card {
+    flex-wrap: wrap;
+  }
+  .wake-text {
+    min-width: 180px;
+  }
+  .wake-btn {
+    flex: 1 0 100%;
+    margin-top: 0.2rem;
+  }
+}
+
 /* Quick Control Pills */
 .quick-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  /* A fixed 2-column grid always breaks evenly (2+2), unlike flex-wrap
+     which - depending on how each pill's label happens to measure at a
+     given screen width - could wrap into an uneven 3-then-1. */
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.6rem;
 }
 
+@media (min-width: 480px) {
+  .quick-controls {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .control-pill {
-  flex: 1 1 130px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -992,8 +1024,17 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   border-radius: 8px;
 }
 
-/* Beaming magic banner */
+/* Beaming magic banner - fixed/overlaid on top of the page instead of
+   sitting in normal flow, so it doesn't shove everything below it down
+   when it appears and back up when it disappears. */
 .beaming-banner {
+  position: fixed;
+  top: max(0.8rem, env(safe-area-inset-top));
+  left: 1rem;
+  right: 1rem;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1002,14 +1043,28 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   border-radius: 14px;
   background: linear-gradient(
     90deg,
-    rgba(245, 158, 11, 0.25),
-    rgba(236, 72, 153, 0.25)
+    rgba(245, 158, 11, 0.95),
+    rgba(236, 72, 153, 0.95)
   );
   border: 1px solid rgba(245, 158, 11, 0.5);
   color: var(--text);
   font-size: 0.9rem;
   font-weight: 700;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   animation: pulseBeaming 1s infinite alternate ease-in-out;
+}
+
+.beam-fade-enter-active,
+.beam-fade-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.beam-fade-enter-from,
+.beam-fade-leave-to {
+  opacity: 0;
+  transform: translate(0, -8px);
 }
 
 @keyframes pulseBeaming {

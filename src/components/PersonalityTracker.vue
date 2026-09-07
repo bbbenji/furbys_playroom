@@ -97,6 +97,7 @@ h2 {
   gap: 0.25rem;
   max-height: 140px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 .history li {
   display: flex;
