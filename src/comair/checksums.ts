@@ -1,0 +1,21 @@
+/**
+ * ComAir packet checksums, ported verbatim from Furby::Packet (Hacksby project,
+ * Igor Afanasyev, MIT-licensed): https://github.com/iafan/Hacksby
+ *
+ * The checksum algorithm itself was never reverse-engineered — these 64 values
+ * were determined empirically. Index 0-31 covers the first packet (high 5 bits
+ * of the command), index 32-63 covers the second packet (low 5 bits, with the
+ * 6th bit forced to 1, i.e. value + 32).
+ */
+export const CHECKSUMS: readonly string[] = [
+  // First packet (high 5 bits of the command number), index 0..31
+  '0000', '0110', '0210', '0300', '1023', '1133', '1233', '1323',
+  '0120', '0201', '0330', '1021', '1103', '1222', '1313', '2021',
+  '0220', '0330', '1000', '1110', '1203', '1313', '2000', '2110',
+  '0300', '1011', '1120', '1201', '1323', '2011', '2120', '2201',
+  // Second packet (low 5 bits + 32), index 32..63
+  '1033', '1123', '1223', '1333', '2033', '2123', '2223', '2333',
+  '1113', '1232', '1303', '2031', '2113', '2232', '2303', '3012',
+  '1213', '1303', '2010', '2100', '2213', '2303', '3033', '3123',
+  '1333', '2001', '2130', '2211', '2333', '3022', '3113', '3232',
+]

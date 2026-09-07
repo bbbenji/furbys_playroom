@@ -1,0 +1,8 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+
+# Extracted Hasbro Furby Boom game assets — not to be committed or shipped
+bassets/
