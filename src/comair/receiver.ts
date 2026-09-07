@@ -34,6 +34,7 @@ type SymbolMsg = {
 export class ComAirReceiver {
   private ctx: AudioContext | null = null;
   private stream: MediaStream | null = null;
+  private source: MediaStreamAudioSourceNode | null = null;
   private node: AudioWorkletNode | null = null;
   private collapsed: string[] = [];
   private lastSymbol: string | null = null;
@@ -93,11 +94,11 @@ export class ComAirReceiver {
         `${import.meta.env.BASE_URL}goertzel-processor.js`,
       );
 
-      const source = this.ctx.createMediaStreamSource(this.stream);
+      this.source = this.ctx.createMediaStreamSource(this.stream);
       this.node = new AudioWorkletNode(this.ctx, "goertzel-processor");
       this.node.port.onmessage = (event: MessageEvent<SymbolMsg>) =>
         this.handleSymbol(event.data);
-      source.connect(this.node);
+      this.source.connect(this.node);
     } catch (err) {
       this.stop();
       throw err;
@@ -108,9 +109,16 @@ export class ComAirReceiver {
     this.node?.port.close();
     this.node?.disconnect();
     this.node = null;
+    // Disconnecting the source node explicitly (rather than relying on it
+    // being torn down implicitly by stopping tracks/closing the context)
+    // matters on iOS Safari, where a MediaStreamAudioSourceNode left attached
+    // to the graph can keep the OS recording indicator on even after its
+    // tracks are stopped.
+    this.source?.disconnect();
+    this.source = null;
     this.stream?.getTracks().forEach((t) => t.stop());
     this.stream = null;
-    this.ctx?.close();
+    void this.ctx?.close();
     this.ctx = null;
     this.collapsed = [];
     this.lastSymbol = null;
