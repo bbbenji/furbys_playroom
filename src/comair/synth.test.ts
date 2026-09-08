@@ -61,4 +61,43 @@ describe("synthesizeCommand", () => {
     expect(() => synthesizeCommand(-1)).toThrow(RangeError);
     expect(() => synthesizeCommand(1024)).toThrow(RangeError);
   });
+
+  it("synthesizes valid audio across boundary commands (0 and 1023)", () => {
+    const cmd0 = synthesizeCommand(0);
+    const cmd1023 = synthesizeCommand(1023);
+
+    expect(cmd0).toBeInstanceOf(Float32Array);
+    expect(cmd1023).toBeInstanceOf(Float32Array);
+    expect(cmd0.length).toBe(cmd1023.length);
+
+    // Verify neither contains NaN or Infinity
+    for (let i = 0; i < cmd0.length; i++) {
+      expect(Number.isFinite(cmd0[i])).toBe(true);
+      expect(Number.isFinite(cmd1023[i])).toBe(true);
+    }
+  });
+
+  it("contains an internal silence gap separating Packet 1 and Packet 2", () => {
+    const samples = synthesizeCommand(820);
+    // There is a ~0.49s silence gap between packets (around sample ~30,000 to ~50,000)
+    // Find consecutive zero-sample streaks
+    let maxZeroStreak = 0;
+    let currentZeroStreak = 0;
+
+    for (let i = 0; i < samples.length; i++) {
+      if (samples[i] === 0) {
+        currentZeroStreak++;
+        if (currentZeroStreak > maxZeroStreak) {
+          maxZeroStreak = currentZeroStreak;
+        }
+      } else {
+        currentZeroStreak = 0;
+      }
+    }
+
+    // 0.49s at 44.1kHz is ~21,609 samples
+    expect(maxZeroStreak).toBeGreaterThan(20000);
+    expect(maxZeroStreak).toBeLessThan(23000);
+  });
 });
+

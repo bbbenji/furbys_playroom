@@ -136,3 +136,112 @@ describe("useFurbyStore.send", () => {
     expect(store.keepAliveActive).toBe(false);
   });
 });
+
+describe("useFurbyStore logging & personality history", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    const store = useFurbyStore();
+    store.clearLog();
+    store.clearPersonalityHistory();
+  });
+
+  it("adds entries to log and limits log size to 200", () => {
+    const store = useFurbyStore();
+    expect(store.log).toEqual([]);
+
+    store._log("tx", 865);
+    expect(store.log).toHaveLength(1);
+    expect(store.log[0].direction).toBe("tx");
+    expect(store.log[0].command).toBe(865);
+    expect(store.log[0].label).toBe("Fart");
+
+    // Add 250 more entries to test truncation
+    for (let i = 0; i < 250; i++) {
+      store._log("rx", 701);
+    }
+    expect(store.log).toHaveLength(200);
+
+    store.clearLog();
+    expect(store.log).toEqual([]);
+  });
+
+  it("records personality sightings on RX and skips consecutive duplicate sightings", () => {
+    const store = useFurbyStore();
+    expect(store.personalityHistory).toEqual([]);
+
+    // Princess personality #901
+    store._log("rx", 901);
+    expect(store.personalityHistory).toHaveLength(1);
+    expect(store.currentPersonality?.id).toBe(901);
+    expect(store.currentPersonality?.label).toBe("Princess");
+
+    // Consecutive repeat should be ignored
+    store._log("rx", 901);
+    expect(store.personalityHistory).toHaveLength(1);
+
+    // Different personality should be prepended
+    store._log("rx", 902);
+    expect(store.personalityHistory).toHaveLength(2);
+    expect(store.currentPersonality?.id).toBe(902);
+    expect(store.currentPersonality?.label).toBe("Diva");
+
+    store.clearPersonalityHistory();
+    expect(store.personalityHistory).toEqual([]);
+    expect(store.currentPersonality).toBeNull();
+  });
+});
+
+describe("useFurbyStore preferences & settings toggles", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+  });
+
+  it("toggles UI mode between kids and console", () => {
+    const store = useFurbyStore();
+    store.setUiMode("console");
+    expect(store.uiMode).toBe("console");
+    expect(localStorage.getItem("furby-console:mode:v1")).toBe("console");
+
+    store.setUiMode("kids");
+    expect(store.uiMode).toBe("kids");
+    expect(localStorage.getItem("furby-console:mode:v1")).toBe("kids");
+  });
+
+  it("toggles soundFx, readAloud, and haptics", () => {
+    const store = useFurbyStore();
+    const prevSoundFx = store.soundFxEnabled;
+    store.toggleSoundFx();
+    expect(store.soundFxEnabled).toBe(!prevSoundFx);
+
+    const prevReadAloud = store.readAloudEnabled;
+    store.toggleReadAloud();
+    expect(store.readAloudEnabled).toBe(!prevReadAloud);
+
+    const prevHaptics = store.hapticsEnabled;
+    store.toggleHaptics();
+    expect(store.hapticsEnabled).toBe(!prevHaptics);
+  });
+
+  it("updates RX threshold", () => {
+    const store = useFurbyStore();
+    store.setRxThreshold(0.025);
+    expect(store.rxThreshold).toBe(0.025);
+    expect(localStorage.getItem("furby-console:rxthreshold:v1")).toBe("0.025");
+  });
+
+  it("triggers mascot reaction and resets to idle after timer", () => {
+    vi.useFakeTimers();
+    const store = useFurbyStore();
+    expect(store.mascotMood).toBe("idle");
+
+    store.triggerMascotReaction("farting", 1500);
+    expect(store.mascotMood).toBe("farting");
+
+    vi.advanceTimersByTime(1550);
+    expect(store.mascotMood).toBe("idle");
+    vi.useRealTimers();
+  });
+});
+
