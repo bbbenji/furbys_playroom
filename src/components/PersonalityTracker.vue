@@ -51,7 +51,7 @@ async function askPersonality() {
         <h2>Personality</h2>
         <button
           type="button"
-          class="ask-btn"
+          class="ask-btn busy-btn"
           :disabled="store.sending !== null || store.micBusy"
           :class="{ busy: store.sending === 813 }"
           title="Sends command #813 to request Furby's current personality (enables mic if needed)"
@@ -140,18 +140,6 @@ h2 {
 .ask-btn:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
-}
-.ask-btn.busy {
-  background: var(--accent);
-  color: white;
-  border-color: transparent;
-}
-.ask-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.ask-btn.busy:disabled {
-  opacity: 1;
 }
 .clear {
   border: none;

@@ -34,6 +34,7 @@ function submit() {
       />
       <button
         type="submit"
+        class="busy-btn"
         :disabled="store.sending !== null"
         :class="{ busy: store.sending === value }"
       >
@@ -100,13 +101,6 @@ button {
 }
 button:hover:not(:disabled) {
   opacity: 0.9;
-}
-button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-button.busy:disabled {
-  opacity: 1;
 }
 .preview-card {
   display: flex;

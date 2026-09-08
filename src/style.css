@@ -120,3 +120,22 @@ button,
 .skip-link:focus {
   top: 1rem;
 }
+
+/* Shared "send in flight" treatment for any button that fires store.send():
+   filled accent while busy, and disabled state that stays fully opaque on
+   the button that's actually busy (so it doesn't look broken) while fading
+   every other disabled button in the group. */
+.busy-btn.busy {
+  background: var(--accent);
+  color: white;
+  border-color: transparent;
+}
+
+.busy-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.busy-btn.busy:disabled {
+  opacity: 1;
+}

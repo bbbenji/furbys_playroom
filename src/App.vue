@@ -76,6 +76,7 @@ onMounted(() => {
       <button
         class="mode-tab"
         :class="{ active: store.uiMode === 'kids' }"
+        :aria-pressed="store.uiMode === 'kids'"
         @click="switchMode('kids')"
       >
         <span class="mode-icon">🧸</span>
@@ -84,6 +85,7 @@ onMounted(() => {
       <button
         class="mode-tab"
         :class="{ active: store.uiMode === 'console' }"
+        :aria-pressed="store.uiMode === 'console'"
         @click="switchMode('console')"
       >
         <span class="mode-icon">🎛️</span>
@@ -106,6 +108,7 @@ onMounted(() => {
             class="power-btn"
             :class="{ on: store.keepAliveActive }"
             :disabled="store.keepAliveBusy"
+            :aria-pressed="store.keepAliveActive"
             @click="store.toggleKeepAlive"
           >
             {{
@@ -118,6 +121,7 @@ onMounted(() => {
             class="power-btn"
             :class="{ on: store.micActive }"
             :disabled="store.micBusy"
+            :aria-pressed="store.micActive"
             @click="store.toggleMic"
           >
             {{ store.micActive ? "Mic: listening" : "Enable mic (hear Furby)" }}

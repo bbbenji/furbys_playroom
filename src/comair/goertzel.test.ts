@@ -1,51 +1,8 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-
-const FREQUENCIES: Record<string, number> = {
-  X: 17500,
-  "0": 16386,
-  "1": 16943,
-  "3": 18057,
-  "2": 18614,
-};
-const WINDOW_SIZE = 512;
-
-interface Coeffs {
-  coeff: number;
-  cosine: number;
-  sinOmega: number;
-}
-
-function computeCoeffs(sr: number): Record<string, Coeffs> {
-  const coeffs: Record<string, Coeffs> = {};
-  for (const symbol in FREQUENCIES) {
-    const freq = FREQUENCIES[symbol];
-    const k = Math.round((WINDOW_SIZE * freq) / sr);
-    const omega = (2 * Math.PI * k) / WINDOW_SIZE;
-    const cosine = Math.cos(omega);
-    coeffs[symbol] = {
-      coeff: 2 * cosine,
-      cosine,
-      sinOmega: Math.sin(omega),
-    };
-  }
-  return coeffs;
-}
-
-function goertzelMagnitude(samples: Float32Array, config: Coeffs): number {
-  const n = samples.length;
-  const { coeff, cosine, sinOmega } = config;
-  let q0 = 0;
-  let q1 = 0;
-  let q2 = 0;
-  for (let i = 0; i < n; i++) {
-    q0 = coeff * q1 - q2 + samples[i];
-    q2 = q1;
-    q1 = q0;
-  }
-  const real = q1 - q2 * cosine;
-  const imag = q2 * sinOmega;
-  return Math.sqrt(real * real + imag * imag) / n;
-}
+import { BASE_FREQ } from "./frequencies";
+import { WINDOW_SIZE, computeCoeffs, goertzelMagnitude } from "./goertzel";
 
 function generateSineWave(freq: number, sr: number, length: number): Float32Array {
   const out = new Float32Array(length);
@@ -62,7 +19,7 @@ describe("Goertzel Tone Detector", () => {
     describe(`Sample Rate ${sr} Hz`, () => {
       const coeffs = computeCoeffs(sr);
 
-      for (const [targetSymbol, targetFreq] of Object.entries(FREQUENCIES)) {
+      for (const [targetSymbol, targetFreq] of Object.entries(BASE_FREQ)) {
         it(`accurately detects pure tone ${targetFreq} Hz as '${targetSymbol}'`, () => {
           const signal = generateSineWave(targetFreq, sr, WINDOW_SIZE);
 
@@ -70,7 +27,7 @@ describe("Goertzel Tone Detector", () => {
           let maxMag = -1;
           const mags: Record<string, number> = {};
 
-          for (const symbol of Object.keys(FREQUENCIES)) {
+          for (const symbol of Object.keys(BASE_FREQ)) {
             const mag = goertzelMagnitude(signal, coeffs[symbol]);
             mags[symbol] = mag;
             if (mag > maxMag) {
@@ -94,7 +51,7 @@ describe("Goertzel Tone Detector", () => {
 
       it("evaluates silence as near-zero magnitude across all frequencies", () => {
         const silence = new Float32Array(WINDOW_SIZE);
-        for (const symbol of Object.keys(FREQUENCIES)) {
+        for (const symbol of Object.keys(BASE_FREQ)) {
           const mag = goertzelMagnitude(silence, coeffs[symbol]);
           expect(mag).toBe(0);
         }
@@ -102,18 +59,51 @@ describe("Goertzel Tone Detector", () => {
 
       it("discriminates against audible/ambient frequencies (e.g. 440 Hz, 1 kHz)", () => {
         const a440 = generateSineWave(440, sr, WINDOW_SIZE);
-        for (const symbol of Object.keys(FREQUENCIES)) {
+        for (const symbol of Object.keys(BASE_FREQ)) {
           const mag = goertzelMagnitude(a440, coeffs[symbol]);
           // Must not cross detection threshold
           expect(mag).toBeLessThan(0.01);
         }
 
         const voice1k = generateSineWave(1000, sr, WINDOW_SIZE);
-        for (const symbol of Object.keys(FREQUENCIES)) {
+        for (const symbol of Object.keys(BASE_FREQ)) {
           const mag = goertzelMagnitude(voice1k, coeffs[symbol]);
           expect(mag).toBeLessThan(0.01);
         }
       });
     });
   }
+});
+
+describe("public/goertzel-processor.js sync check", () => {
+  // The AudioWorklet processor is loaded standalone at runtime (plain JS, not
+  // bundled by Vite - see its header comment) and hand-maintains its own copy
+  // of the frequency table and window size. Nothing at build time ties that
+  // copy back to frequencies.ts/goertzel.ts, so a TX tuning change here could
+  // silently break real-device RX. This test parses the worklet source and
+  // fails loudly the moment the two fall out of sync.
+  const workletPath = fileURLToPath(
+    new URL("../../public/goertzel-processor.js", import.meta.url),
+  );
+  const workletSource = readFileSync(workletPath, "utf-8");
+
+  it("uses the same tone frequencies as frequencies.ts", () => {
+    const match = workletSource.match(/const FREQUENCIES = \{([^}]+)\}/);
+    expect(match, "couldn't find FREQUENCIES in goertzel-processor.js").not.toBeNull();
+
+    const entries: Record<string, number> = {};
+    const pairPattern = /['"]?(\w+)['"]?\s*:\s*(\d+)/g;
+    let pair: RegExpExecArray | null;
+    while ((pair = pairPattern.exec(match![1])) !== null) {
+      entries[pair[1]] = Number(pair[2]);
+    }
+
+    expect(entries).toEqual(BASE_FREQ);
+  });
+
+  it("uses the same window size as goertzel.ts", () => {
+    const match = workletSource.match(/const WINDOW_SIZE = (\d+)/);
+    expect(match, "couldn't find WINDOW_SIZE in goertzel-processor.js").not.toBeNull();
+    expect(Number(match![1])).toBe(WINDOW_SIZE);
+  });
 });

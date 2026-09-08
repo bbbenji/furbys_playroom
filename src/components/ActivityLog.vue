@@ -86,6 +86,7 @@ async function copyLog() {
         type="button"
         class="filter-pill"
         :class="{ active: filter === 'all' }"
+        :aria-pressed="filter === 'all'"
         @click="filter = 'all'"
       >
         All ({{ store.log.length }})
@@ -94,6 +95,7 @@ async function copyLog() {
         type="button"
         class="filter-pill"
         :class="{ active: filter === 'tx' }"
+        :aria-pressed="filter === 'tx'"
         @click="filter = 'tx'"
       >
         Sent TX ({{ txCount }})
@@ -102,6 +104,7 @@ async function copyLog() {
         type="button"
         class="filter-pill"
         :class="{ active: filter === 'rx' }"
+        :aria-pressed="filter === 'rx'"
         @click="filter = 'rx'"
       >
         Heard RX ({{ rxCount }})

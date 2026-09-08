@@ -17,7 +17,7 @@ const store = useFurbyStore()
       <button
         v-for="cmd in commands"
         :key="cmd.id"
-        class="cmd-btn"
+        class="cmd-btn busy-btn"
         :class="{ busy: store.sending === cmd.id }"
         :disabled="store.sending !== null"
         :title="cmd.label + ' (#' + cmd.id + '): ' + cmd.description"
@@ -78,19 +78,7 @@ h2 {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
-.cmd-btn.busy {
-  background: var(--accent);
-  color: white;
-  border-color: transparent;
-}
 .cmd-btn.busy .cmd-id {
   color: rgba(255, 255, 255, 0.85);
-}
-.cmd-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-.cmd-btn.busy:disabled {
-  opacity: 1;
 }
 </style>

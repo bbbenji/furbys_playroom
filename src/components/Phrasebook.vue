@@ -99,7 +99,7 @@ function toggleExpanded() {
           <span class="furbish">{{ e.furbish }}</span>
         </span>
         <button
-          class="send"
+          class="send busy-btn"
           :class="{ busy: store.sending === e.id }"
           :disabled="store.sending !== null"
           :title="'Send phrase #' + e.id"
@@ -261,18 +261,6 @@ h2 {
 .send:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--accent);
-}
-.send.busy {
-  background: var(--accent);
-  color: white;
-  border-color: transparent;
-}
-.send:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.send.busy:disabled {
-  opacity: 1;
 }
 .more {
   margin-top: 0.5rem;
