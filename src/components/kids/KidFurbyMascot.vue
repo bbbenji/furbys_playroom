@@ -15,6 +15,18 @@ const eyeOffsetY = ref(0);
 let blinkTimer: ReturnType<typeof setTimeout> | null = null;
 let blinkCloseTimer: ReturnType<typeof setTimeout> | null = null;
 
+// Tracks every other short-lived UI-reset setTimeout (wiggle/hearts/double-blink)
+// so they can be cancelled if the component unmounts mid-flight.
+const pendingTimers = new Set<ReturnType<typeof setTimeout>>();
+function trackedTimeout(fn: () => void, ms: number) {
+  const id = setTimeout(() => {
+    pendingTimers.delete(id);
+    fn();
+  }, ms);
+  pendingTimers.add(id);
+  return id;
+}
+
 function closeEyes(holdMs: number) {
   isBlinking.value = true;
   blinkCloseTimer = setTimeout(() => {
@@ -28,7 +40,7 @@ function scheduleNextBlink() {
     if (store.mascotMood !== "sleeping") {
       closeEyes(90 + Math.random() * 60);
       if (Math.random() < 0.15) {
-        setTimeout(() => closeEyes(90), 220);
+        trackedTimeout(() => closeEyes(90), 220);
       }
     }
     scheduleNextBlink();
@@ -39,6 +51,8 @@ onMounted(scheduleNextBlink);
 onUnmounted(() => {
   if (blinkTimer) clearTimeout(blinkTimer);
   if (blinkCloseTimer) clearTimeout(blinkCloseTimer);
+  pendingTimers.forEach((t) => clearTimeout(t));
+  pendingTimers.clear();
 });
 
 function onPointerMove(e: PointerEvent) {
@@ -62,7 +76,7 @@ function onEarClick(_which: "left" | "right") {
   if (store.soundFxEnabled) playBoing();
   isWiggling.value = true;
   store.triggerMascotReaction("surprised", 1500);
-  setTimeout(() => {
+  trackedTimeout(() => {
     isWiggling.value = false;
   }, 600);
 }
@@ -73,10 +87,10 @@ function onTummyClick() {
   isWiggling.value = true;
   showHearts.value = true;
   store.triggerMascotReaction("happy", 2200);
-  setTimeout(() => {
+  trackedTimeout(() => {
     isWiggling.value = false;
   }, 600);
-  setTimeout(() => {
+  trackedTimeout(() => {
     showHearts.value = false;
   }, 1800);
 }
@@ -93,7 +107,7 @@ function onFurbyClick() {
     if (store.soundFxEnabled) playChime();
     store.keepAliveActive = true;
     store.triggerMascotReaction("surprised", 1200);
-    setTimeout(() => {
+    trackedTimeout(() => {
       store.triggerMascotReaction("happy", 2000);
     }, 1200);
     void store._startKeepAlive();
@@ -106,10 +120,10 @@ function onFurbyClick() {
   showHearts.value = true;
   store.triggerMascotReaction("happy", 2200);
 
-  setTimeout(() => {
+  trackedTimeout(() => {
     isWiggling.value = false;
   }, 600);
-  setTimeout(() => {
+  trackedTimeout(() => {
     showHearts.value = false;
   }, 1800);
 }

@@ -9,6 +9,7 @@ export class ComAirTransmitter {
   private player = new ComAirPlayer()
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null
   private startingKeepAlive: Promise<void> | null = null
+  private keepAliveGeneration = 0
   private sentHandlers: Array<(command: number) => void> = []
 
   onSent(handler: (command: number) => void): void {
@@ -32,10 +33,14 @@ export class ComAirTransmitter {
   async startKeepAlive(): Promise<void> {
     if (this.keepAliveTimer) return
     if (this.startingKeepAlive) return this.startingKeepAlive
+    const generation = this.keepAliveGeneration
     this.startingKeepAlive = (async () => {
       try {
         await this.send(KEEP_ALIVE_COMMAND)
-        if (!this.keepAliveTimer) {
+        // stopKeepAlive() may have been called while the above await was in
+        // flight - bail out instead of resurrecting a timer the caller
+        // explicitly stopped.
+        if (!this.keepAliveTimer && generation === this.keepAliveGeneration) {
           this.keepAliveTimer = setInterval(() => {
             void this.send(KEEP_ALIVE_COMMAND)
           }, KEEP_ALIVE_INTERVAL_MS)
@@ -48,6 +53,7 @@ export class ComAirTransmitter {
   }
 
   stopKeepAlive(): void {
+    this.keepAliveGeneration++
     if (this.keepAliveTimer) clearInterval(this.keepAliveTimer)
     this.keepAliveTimer = null
     this.startingKeepAlive = null

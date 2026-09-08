@@ -45,7 +45,7 @@ class SampleWriter {
 
 function addSilence(out: SampleWriter, lengthSeconds: number) {
   const n = Math.round(lengthSeconds * SAMPLE_RATE);
-  for (let i = 0; i <= n; i++) out.push(0);
+  for (let i = 0; i < n; i++) out.push(0);
 }
 
 /**

@@ -105,6 +105,7 @@ onMounted(() => {
           <button
             class="power-btn"
             :class="{ on: store.keepAliveActive }"
+            :disabled="store.keepAliveBusy"
             @click="store.toggleKeepAlive"
           >
             {{
@@ -116,6 +117,7 @@ onMounted(() => {
           <button
             class="power-btn"
             :class="{ on: store.micActive }"
+            :disabled="store.micBusy"
             @click="store.toggleMic"
           >
             {{ store.micActive ? "Mic: listening" : "Enable mic (hear Furby)" }}

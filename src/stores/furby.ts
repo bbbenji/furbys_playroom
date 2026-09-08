@@ -119,6 +119,8 @@ export const useFurbyStore = defineStore("furby", {
     log: initialLog as LogEntry[],
     personalityHistory: initialPersonalityHistory as PersonalitySighting[],
     sending: null as number | null,
+    micBusy: false,
+    keepAliveBusy: false,
     rxThreshold: initialRxThreshold as number,
     /** Live per-tone Goertzel magnitudes from the current mic window, for the RX debug view. Empty while mic is off. */
     rxMagnitudes: {} as Record<string, number>,
@@ -319,43 +321,55 @@ export const useFurbyStore = defineStore("furby", {
 
     /** Manual override, still exposed in Pro Console for explicit control/debugging. */
     async toggleKeepAlive() {
-      if (this.keepAliveActive) {
-        transmitter.stopKeepAlive();
-        this.keepAliveActive = false;
-        this.triggerMascotReaction("sleeping", 2000);
-        return;
-      }
+      if (this.keepAliveBusy) return;
+      this.keepAliveBusy = true;
+      try {
+        if (this.keepAliveActive) {
+          transmitter.stopKeepAlive();
+          this.keepAliveActive = false;
+          this.triggerMascotReaction("sleeping", 2000);
+          return;
+        }
 
-      this.sendError = null;
-      this.keepAliveActive = true;
-      this.triggerMascotReaction("happy", 2500);
-      await this._startKeepAlive();
+        this.sendError = null;
+        this.keepAliveActive = true;
+        this.triggerMascotReaction("happy", 2500);
+        await this._startKeepAlive();
+      } finally {
+        this.keepAliveBusy = false;
+      }
     },
 
     async toggleMic() {
-      if (this.micActive) {
-        receiver?.stop();
-        receiver = null;
-        this.micActive = false;
-        this.rxMagnitudes = {};
-        this.rxSymbol = null;
-        return;
-      }
-
-      this.micError = null;
+      if (this.micBusy) return;
+      this.micBusy = true;
       try {
-        receiver = new ComAirReceiver(this.rxThreshold);
-        receiver.onCommand(({ command }) => this._log("rx", command));
-        receiver.onSymbol(({ symbol, magnitudes }) => {
-          this.rxSymbol = symbol;
-          this.rxMagnitudes = magnitudes;
-        });
-        await receiver.start();
-        this.micActive = true;
-      } catch (err) {
-        this.micError = friendlyReceiverError(err);
-        receiver = null;
-        this.micActive = false;
+        if (this.micActive) {
+          receiver?.stop();
+          receiver = null;
+          this.micActive = false;
+          this.rxMagnitudes = {};
+          this.rxSymbol = null;
+          return;
+        }
+
+        this.micError = null;
+        try {
+          const r = new ComAirReceiver(this.rxThreshold);
+          r.onCommand(({ command }) => this._log("rx", command));
+          r.onSymbol(({ symbol, magnitudes }) => {
+            this.rxSymbol = symbol;
+            this.rxMagnitudes = magnitudes;
+          });
+          await r.start();
+          receiver = r;
+          this.micActive = true;
+        } catch (err) {
+          this.micError = friendlyReceiverError(err);
+          this.micActive = false;
+        }
+      } finally {
+        this.micBusy = false;
       }
     },
 

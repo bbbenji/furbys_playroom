@@ -52,7 +52,7 @@ async function askPersonality() {
         <button
           type="button"
           class="ask-btn"
-          :disabled="store.sending !== null"
+          :disabled="store.sending !== null || store.micBusy"
           :class="{ busy: store.sending === 813 }"
           title="Sends command #813 to request Furby's current personality (enables mic if needed)"
           @click="askPersonality"

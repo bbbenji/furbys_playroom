@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onUnmounted, ref, watch } from "vue";
 import { useFurbyStore } from "../../stores/furby";
 import { vibrate } from "./haptics";
 import KidFurbyMascot from "./KidFurbyMascot.vue";
@@ -254,7 +254,32 @@ const ITEM_TAB: Record<number, TabKey> = Object.fromEntries([
   ...MUSIC_ITEMS.map((item) => [item.id, "music" as TabKey]),
 ]);
 
-const optimisticDiscovered = ref<Set<number>>(new Set());
+const DISCOVERED_STORAGE_KEY = "furby-console:discovered:v1";
+
+function loadDiscovered(): Set<number> {
+  try {
+    const raw = localStorage.getItem(DISCOVERED_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? new Set(parsed.filter((n): n is number => typeof n === "number"))
+      : new Set();
+  } catch {
+    return new Set();
+  }
+}
+
+function persistDiscovered(ids: Set<number>) {
+  try {
+    localStorage.setItem(DISCOVERED_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    // Storage full or unavailable (e.g. private browsing) - won't survive a reload.
+  }
+}
+
+// Backed by localStorage (not just store.log) so a kid's collection rank
+// can't regress when older entries scroll out of the log's LOG_LIMIT cap.
+const optimisticDiscovered = ref<Set<number>>(loadDiscovered());
 
 const discoveredIds = computed(() => {
   const seen = new Set<number>(optimisticDiscovered.value);
@@ -290,14 +315,17 @@ interface ParticleBurst {
 }
 const bursts = ref<ParticleBurst[]>([]);
 let burstCounter = 0;
+const burstTimers = new Set<ReturnType<typeof setTimeout>>();
 
 function spawnBurst(e: MouseEvent | undefined, emoji: string) {
-  if (!e || !e.clientX) return;
+  if (!e) return;
   const id = burstCounter++;
   bursts.value.push({ id, x: e.clientX, y: e.clientY, emoji });
-  setTimeout(() => {
+  const timer = setTimeout(() => {
+    burstTimers.delete(timer);
     bursts.value = bursts.value.filter((b) => b.id !== id);
   }, 750);
+  burstTimers.add(timer);
 }
 
 const highlightedCardId = ref<number | null>(null);
@@ -312,6 +340,13 @@ watch(discoveredCount, (next, prev) => {
   discoveryToastTimer = setTimeout(() => {
     justDiscovered.value = false;
   }, 2200);
+});
+
+onUnmounted(() => {
+  if (highlightTimer) clearTimeout(highlightTimer);
+  if (discoveryToastTimer) clearTimeout(discoveryToastTimer);
+  burstTimers.forEach((t) => clearTimeout(t));
+  burstTimers.clear();
 });
 
 function playKidSound(sound?: string) {
@@ -340,7 +375,10 @@ function playKidSound(sound?: string) {
 
 function handleItemClick(item: KidItem, event?: MouseEvent) {
   vibrate(15);
-  optimisticDiscovered.value.add(item.id);
+  if (!optimisticDiscovered.value.has(item.id)) {
+    optimisticDiscovered.value.add(item.id);
+    persistDiscovered(optimisticDiscovered.value);
+  }
   if (event) spawnBurst(event, item.icon);
   playKidSound(item.sound);
   if (store.readAloudEnabled) speak(item.title);
@@ -459,6 +497,48 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         emoji: "💅",
         desc: "Chatterbox! Always has the latest news and secrets!",
         badgeColor: "#8b5cf6",
+      };
+    case 906:
+      return {
+        title: "Snuggleby",
+        emoji: "🧸",
+        desc: "Extra cuddly and loves warm, cozy hugs!",
+        badgeColor: "#f472b6",
+      };
+    case 907:
+      return {
+        title: "Sassby",
+        emoji: "😼",
+        desc: "A little bit sassy with a big personality!",
+        badgeColor: "#a855f7",
+      };
+    case 908:
+      return {
+        title: "Scoffby",
+        emoji: "😏",
+        desc: "Cheeky and full of playful teasing!",
+        badgeColor: "#f59e0b",
+      };
+    case 909:
+      return {
+        title: "Chuckleby",
+        emoji: "😆",
+        desc: "Can't stop giggling at everything!",
+        badgeColor: "#22c55e",
+      };
+    case 910:
+      return {
+        title: "Gassby",
+        emoji: "💨",
+        desc: "Toots and tummy rumbles are just part of the fun!",
+        badgeColor: "#10b981",
+      };
+    case 911:
+      return {
+        title: "Lateby",
+        emoji: "⏰",
+        desc: "Always sleepy and running a little behind schedule!",
+        badgeColor: "#6366f1",
       };
     default:
       return {

@@ -129,6 +129,7 @@ export class ComAirReceiver {
     this.ctx = null;
     this.collapsed = [];
     this.lastSymbol = null;
+    this.lastEmittedHigh = null;
   }
 
   handleSymbol(msg: SymbolMsg): void {
