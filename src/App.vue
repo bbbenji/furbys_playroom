@@ -305,4 +305,63 @@ footer {
 footer a {
   color: var(--accent);
 }
+
+@media (prefers-color-scheme: light) {
+  .mode-bar {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 2px 8px rgba(148, 163, 184, 0.1);
+  }
+
+  .mode-tab {
+    color: #64748b;
+  }
+
+  .mode-tab:hover {
+    color: #0f172a;
+  }
+
+  .mode-tab:first-child.active {
+    background: linear-gradient(135deg, #ede9fe 0%, #fce7f3 100%);
+    border-color: #c4b5fd;
+    color: #6d28d9;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+  }
+
+  .mode-tab:last-child.active {
+    background: linear-gradient(135deg, #e0e7ff 0%, #ede9fe 100%);
+    border-color: #a5b4fc;
+    color: #4338ca;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+  }
+
+  .status-badge {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #64748b;
+    box-shadow: 0 1px 4px rgba(148, 163, 184, 0.1);
+  }
+
+  .status-badge.active {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #15803d;
+  }
+
+  .status-badge.active .dot {
+    background: #16a34a;
+    box-shadow: 0 0 6px #16a34a;
+  }
+
+  .status-badge.mic-badge.active {
+    background: #cffafe;
+    border-color: #67e8f9;
+    color: #0e7490;
+  }
+
+  .status-badge.mic-badge.active .dot {
+    background: #0891b2;
+    box-shadow: 0 0 6px #0891b2;
+  }
+}
 </style>

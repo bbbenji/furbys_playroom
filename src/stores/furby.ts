@@ -237,6 +237,13 @@ export const useFurbyStore = defineStore("furby", {
 
       this.sending = command;
       this.sendError = null;
+
+      // Optimistic instant feedback: wake up and react immediately (<16ms)
+      // rather than delaying several seconds while ultrasonic audio transmits.
+      const wasAsleep = !this.keepAliveActive;
+      this.keepAliveActive = true;
+      this.triggerMascotReaction(getMoodForCommand(command));
+
       try {
         // Furby ignores most commands outside its ~60s listening window. The
         // official app kept this refreshed silently in the background the
@@ -244,16 +251,21 @@ export const useFurbyStore = defineStore("furby", {
         // step (that's the only reason we know the 35s re-send interval at
         // all - see KEEP_ALIVE_INTERVAL_MS) - so ensure it here rather than
         // requiring a separate "wake up" tap first.
-        if (!transmitter.keepAliveActive) {
+        if (wasAsleep || !transmitter.keepAliveActive) {
           await this._startKeepAlive();
-          if (this.sendError) return;
+          if (this.sendError) {
+            this.keepAliveActive = false;
+            return;
+          }
         }
 
-        this.triggerMascotReaction(getMoodForCommand(command));
         await transmitter.send(command);
         this._log("tx", command);
       } catch (err) {
         this.sendError = err instanceof Error ? err.message : String(err);
+        if (wasAsleep && !transmitter.keepAliveActive) {
+          this.keepAliveActive = false;
+        }
       } finally {
         this.sending = null;
       }
@@ -295,19 +307,19 @@ export const useFurbyStore = defineStore("furby", {
 
     /** Starts the keep-alive daemon; errors are surfaced via sendError rather than thrown. */
     async _startKeepAlive() {
+      this.keepAliveActive = true;
       try {
         await transmitter.startKeepAlive();
         this._log("tx", 820);
-        this.keepAliveActive = true;
-        this.triggerMascotReaction("happy", 2500);
       } catch (err) {
+        this.keepAliveActive = false;
         this.sendError = err instanceof Error ? err.message : String(err);
       }
     },
 
     /** Manual override, still exposed in Pro Console for explicit control/debugging. */
     async toggleKeepAlive() {
-      if (transmitter.keepAliveActive) {
+      if (this.keepAliveActive) {
         transmitter.stopKeepAlive();
         this.keepAliveActive = false;
         this.triggerMascotReaction("sleeping", 2000);
@@ -315,6 +327,8 @@ export const useFurbyStore = defineStore("furby", {
       }
 
       this.sendError = null;
+      this.keepAliveActive = true;
+      this.triggerMascotReaction("happy", 2500);
       await this._startKeepAlive();
     },
 

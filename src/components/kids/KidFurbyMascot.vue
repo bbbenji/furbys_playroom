@@ -89,12 +89,14 @@ function onBeakClick() {
 
 function onFurbyClick() {
   vibrate(25);
-  if (store.mascotMood === "sleeping") {
+  if (store.mascotMood === "sleeping" || !store.keepAliveActive) {
     if (store.soundFxEnabled) playChime();
+    store.keepAliveActive = true;
     store.triggerMascotReaction("surprised", 1200);
     setTimeout(() => {
       store.triggerMascotReaction("happy", 2000);
     }, 1200);
+    void store._startKeepAlive();
     return;
   }
   if (store.soundFxEnabled) {
@@ -260,6 +262,16 @@ function onFurbyClick() {
             transform="rotate(30 156 56)"
           />
         </g>
+
+        <!-- Grounded Stage Shadow Under Furby -->
+        <ellipse
+          cx="100"
+          cy="188"
+          rx="56"
+          ry="11"
+          fill="rgba(0, 0, 0, 0.4)"
+          class="stage-ground-shadow"
+        />
 
         <!-- Main Body -->
         <circle
@@ -543,7 +555,7 @@ function onFurbyClick() {
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 0.8rem 0;
+  padding: 0.2rem 0 0;
   position: relative;
 }
 
@@ -1072,17 +1084,31 @@ function onFurbyClick() {
 
 /* Tap Hint / Speech Bubble */
 .tap-hint {
-  margin-top: 0.3rem;
-  padding: 0.35rem 0.9rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  padding: 0.35rem 0.95rem;
   border-radius: 9999px;
-  background: rgba(124, 58, 237, 0.15);
-  border: 1px solid rgba(168, 85, 247, 0.3);
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(168, 85, 247, 0.35);
   color: var(--text);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: background 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+@media (prefers-color-scheme: light) {
+  .tap-hint {
+    background: #f5f3ff;
+    border-color: #ddd6fe;
+    color: #5b21b6;
+    box-shadow: 0 4px 14px rgba(124, 58, 237, 0.12);
+  }
+
+  .stage-ground-shadow {
+    fill: rgba(148, 163, 184, 0.45);
+  }
 }
 </style>

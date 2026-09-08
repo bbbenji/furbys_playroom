@@ -33,19 +33,7 @@ function onTabKeydown(e: KeyboardEvent, currentTab: TabKey) {
   }
 }
 
-const KIDS_ONBOARDING_KEY = "furby-console:kids-onboarding-dismissed:v1";
-const onboardingDismissed = ref(
-  localStorage.getItem(KIDS_ONBOARDING_KEY) === "1",
-);
 
-function dismissOnboarding() {
-  onboardingDismissed.value = true;
-  try {
-    localStorage.setItem(KIDS_ONBOARDING_KEY, "1");
-  } catch {
-    // ignore
-  }
-}
 
 interface KidItem {
   id: number;
@@ -266,11 +254,16 @@ const ITEM_TAB: Record<number, TabKey> = Object.fromEntries([
   ...MUSIC_ITEMS.map((item) => [item.id, "music" as TabKey]),
 ]);
 
+const optimisticDiscovered = ref<Set<number>>(new Set());
+
 const discoveredIds = computed(() => {
-  const seen = new Set<number>();
+  const seen = new Set<number>(optimisticDiscovered.value);
   for (const entry of store.log) {
     if (entry.direction === "tx" && ALL_ITEM_IDS.has(entry.command))
       seen.add(entry.command);
+  }
+  if (store.sending !== null && ALL_ITEM_IDS.has(store.sending)) {
+    seen.add(store.sending);
   }
   return seen;
 });
@@ -347,6 +340,7 @@ function playKidSound(sound?: string) {
 
 function handleItemClick(item: KidItem, event?: MouseEvent) {
   vibrate(15);
+  optimisticDiscovered.value.add(item.id);
   if (event) spawnBurst(event, item.icon);
   playKidSound(item.sound);
   if (store.readAloudEnabled) speak(item.title);
@@ -491,164 +485,129 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
       </span>
     </div>
 
-    <!-- First-Visit Onboarding -->
-    <div v-if="!onboardingDismissed" class="kids-onboarding">
-      <span class="onboarding-emoji" aria-hidden="true">👋</span>
-      <p>
-        First time here? Explore <strong>Silly Tricks</strong>,
-        <strong>Feed Furby</strong>, and <strong>Dance Party</strong> below to
-        hear magic sounds! Furby wakes up on its own the first time you tap
-        something.
-      </p>
-      <button
-        type="button"
-        class="onboarding-dismiss"
-        aria-label="Got it, dismiss this tip"
-        @click="dismissOnboarding"
-      >
-        ✕
-      </button>
-    </div>
+    <!-- Hero Playroom Stage Card -->
+    <section class="playroom-stage" aria-label="Furby Stage">
+      <!-- Stage Top Control Header -->
+      <div class="stage-header">
+        <div class="stage-status-group">
+          <!-- Awake / Sleep Toggle -->
+          <button
+            type="button"
+            class="stage-chip wake-chip"
+            :class="{ awake: store.keepAliveActive }"
+            :title="store.keepAliveActive ? 'Furby is awake and listening - tap to let sleep' : 'Tap to wake up Furby'"
+            @click="handleSleepToggle"
+          >
+            <span class="chip-glow-dot" aria-hidden="true"></span>
+            <span class="chip-icon">{{ store.keepAliveActive ? "🌟" : "💤" }}</span>
+            <span class="chip-text">{{ store.keepAliveActive ? "Awake" : "Sleeping" }}</span>
+          </button>
 
-    <!-- Listening Status & Quick Controls -->
-    <div class="wake-station">
-      <!-- Furby wakes itself automatically on the first command, but kids
-           still need a way to ask it to be quiet again. -->
-      <button
-        v-if="store.keepAliveActive"
-        type="button"
-        class="sleep-status"
-        @click="handleSleepToggle"
-      >
-        <span class="sleep-icon" aria-hidden="true">🌟</span>
-        <span>Furby is awake and listening - tap to let sleep 💤</span>
-      </button>
+          <!-- Mic Listening Toggle -->
+          <button
+            type="button"
+            class="stage-chip mic-chip"
+            :class="{ active: store.micActive, hearing: hasLiveRxSignal }"
+            :title="store.micActive ? 'Mic listening to Furby - tap to turn off' : 'Enable mic to listen to Furby'"
+            @click="handleMicToggle"
+          >
+            <span class="chip-icon">👂</span>
+            <span class="chip-text">
+              {{ store.micActive ? (hasLiveRxSignal ? "Hearing Furby!" : "Listening") : "Hear Furby" }}
+            </span>
+          </button>
+        </div>
 
-      <!-- Quick Control Pills -->
-      <div class="quick-controls">
-        <button
-          class="control-pill"
-          :class="{ active: store.micActive }"
-          @click="handleMicToggle"
-          :title="
-            store.micActive
-              ? 'Mic listening to Furby'
-              : 'Enable mic to hear Furby'
-          "
-        >
-          <span class="pill-icon">👂</span>
-          <span>{{
-            store.micActive ? "Listening to Furby" : "Listen to Furby"
-          }}</span>
-        </button>
+        <!-- Compact Play Tools Bar -->
+        <div class="stage-tools-group" role="group" aria-label="Audio & Haptics Settings">
+          <button
+            type="button"
+            class="tool-btn"
+            :class="{ active: store.soundFxEnabled }"
+            :title="store.soundFxEnabled ? 'Sound FX On - tap to mute' : 'Sound FX Muted - tap to turn on'"
+            @click="handleSoundFxToggle"
+          >
+            <span class="tool-icon">{{ store.soundFxEnabled ? "🔊" : "🔇" }}</span>
+          </button>
 
-        <button
-          class="control-pill sfx-pill"
-          :class="{ active: store.soundFxEnabled }"
-          @click="handleSoundFxToggle"
-          :title="store.soundFxEnabled ? 'Sound FX On' : 'Sound FX Muted'"
-        >
-          <span class="pill-icon">{{
-            store.soundFxEnabled ? "🔊" : "🔇"
-          }}</span>
-          <span>{{ store.soundFxEnabled ? "Sound FX On" : "Muted" }}</span>
-        </button>
+          <button
+            type="button"
+            class="tool-btn"
+            :class="{ active: store.readAloudEnabled }"
+            :title="store.readAloudEnabled ? 'Read Aloud On - tap to turn off' : 'Read Aloud Off - tap to turn on'"
+            @click="handleReadAloudToggle"
+          >
+            <span class="tool-icon">🗣️</span>
+          </button>
 
-        <button
-          class="control-pill read-pill"
-          :class="{ active: store.readAloudEnabled }"
-          @click="handleReadAloudToggle"
-          :title="
-            store.readAloudEnabled
-              ? 'Furby will say each sound out loud'
-              : 'Turn on read-aloud for each sound'
-          "
-        >
-          <span class="pill-icon">🗣️</span>
-          <span>Read Aloud</span>
-        </button>
-
-        <button
-          class="control-pill haptics-pill"
-          :class="{ active: store.hapticsEnabled }"
-          @click="handleHapticsToggle"
-          :title="
-            store.hapticsEnabled
-              ? 'Buzzes on every tap'
-              : 'Turn on buzzing for taps'
-          "
-        >
-          <span class="pill-icon">{{
-            store.hapticsEnabled ? "📳" : "📴"
-          }}</span>
-          <span>Buzz</span>
-        </button>
+          <button
+            type="button"
+            class="tool-btn"
+            :class="{ active: store.hapticsEnabled }"
+            :title="store.hapticsEnabled ? 'Vibration On - tap to turn off' : 'Vibration Off - tap to turn on'"
+            @click="handleHapticsToggle"
+          >
+            <span class="tool-icon">{{ store.hapticsEnabled ? "📳" : "📴" }}</span>
+          </button>
+        </div>
       </div>
 
-      <!-- Friendly proximity & volume guide for high ultrasonic reliability -->
-      <div class="audio-guide-pill" role="status">
-        <span class="guide-icon" aria-hidden="true">🔊</span>
-        <span>Keep speaker near Furby's tummy • Volume ~80%</span>
-      </div>
+      <!-- Centerpiece Interactive Furby Mascot -->
+      <div class="stage-mascot-arena">
+        <KidFurbyMascot />
 
-      <p v-if="store.micError" class="kids-error">
-        ⚠️ Microphone note: {{ store.micError }}
-      </p>
-      <p v-if="store.sendError" class="kids-error">
-        ⚠️ Oops, that sound didn't send: {{ store.sendError }}
-      </p>
-    </div>
-
-    <!-- Interactive Furby Mascot -->
-    <KidFurbyMascot />
-
-    <!-- Sending Banner: fixed/overlaid so it doesn't push the page down
-         when it appears and back up when it disappears. -->
-    <Transition name="beam-fade">
-      <div v-if="store.sending !== null" class="beaming-banner">
-        <span class="beaming-pulse"></span>
-        <span>📡 Beaming magic sound to Furby... Keep speaker close!</span>
-      </div>
-    </Transition>
-
-    <!-- Sound Collection & Surprise Me -->
-    <div class="discovery-panel">
-      <div class="discovery-info">
-        <div class="discovery-header">
-          <div class="discovery-title-group">
-            <span aria-hidden="true">🌟</span>
-            <span>Sound Collection</span>
+        <!-- In-situ Radiant Beaming Sonic Rings (dialogue bubble inside mascot handles status) -->
+        <Transition name="beam-pop">
+          <div v-if="store.sending !== null" class="stage-beaming-pulse" role="status">
+            <span class="beaming-sonic-ring ring-1"></span>
+            <span class="beaming-sonic-ring ring-2"></span>
           </div>
-          <span class="rank-badge">{{ collectionRank.emoji }} {{ collectionRank.title }}</span>
-        </div>
-        <div class="discovery-bar-track">
-          <div
-            class="discovery-bar-fill"
-            :style="{ width: discoveryPercent + '%' }"
-          ></div>
-        </div>
-        <p class="discovery-count" :class="{ celebrate: justDiscovered }">
-          {{
-            justDiscovered
-              ? "🎉 New sound discovered!"
-              : discoveredCount === TOTAL_DISCOVERABLE
-                ? `🏆 All ${TOTAL_DISCOVERABLE} sounds found! Master Collector!`
-                : `${discoveredCount} / ${TOTAL_DISCOVERABLE} sounds found!`
-          }}
-        </p>
+        </Transition>
       </div>
+
+      <!-- Stage Bottom Audio Proximity Guide -->
+      <div class="stage-footer-guide">
+        <span class="guide-speaker-icon" aria-hidden="true">🔊</span>
+        <span>Hold speaker close to Furby's tummy • Volume ~80%</span>
+      </div>
+
+      <p v-if="store.micError" class="stage-error">⚠️ Mic note: {{ store.micError }}</p>
+      <p v-if="store.sendError" class="stage-error">⚠️ Sound didn't send: {{ store.sendError }}</p>
+    </section>
+
+    <!-- Compact Discovery Capsule & Surprise Me Bar -->
+    <div class="discovery-capsule-bar">
+      <div class="discovery-capsule">
+        <div class="capsule-progress-group">
+          <div class="capsule-count-row">
+            <span class="capsule-title">
+              <span aria-hidden="true">⭐</span>
+              <strong>{{ discoveredCount }}</strong>/{{ TOTAL_DISCOVERABLE }} Found
+            </span>
+            <span class="capsule-rank-tag">{{ collectionRank.emoji }} {{ collectionRank.title }}</span>
+          </div>
+          <div class="capsule-track">
+            <div
+              class="capsule-fill"
+              :style="{ width: discoveryPercent + '%' }"
+            ></div>
+          </div>
+        </div>
+      </div>
+
       <button
         type="button"
-        class="surprise-btn"
+        class="capsule-surprise-btn"
         :disabled="store.sending !== null"
+        title="Pick a random surprise sound!"
         @click="handleSurprise($event)"
       >
-        <span class="surprise-icon" aria-hidden="true">🎲</span>
+        <span class="surprise-dice-icon" aria-hidden="true">🎲</span>
         <span>Surprise Me!</span>
       </button>
     </div>
 
-    <!-- Category Tabs -->
+    <!-- Playful Segmented Category Tabs -->
     <nav class="category-tabs" aria-label="Play Categories" role="tablist">
       <button
         id="tab-tricks"
@@ -873,15 +832,6 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         </div>
       </div>
     </section>
-
-    <!-- Pro Tip Card -->
-    <footer class="kids-tip-card">
-      <span class="tip-icon">📱</span>
-      <p class="tip-text">
-        <strong>Play Tip:</strong> Hold your phone close to Furby's tummy with
-        volume at about <strong>80%</strong> so Furby can hear the magic sounds!
-      </p>
-    </footer>
   </div>
 </template>
 
@@ -889,7 +839,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 .kids-view {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 0.9rem;
   padding-bottom: 2rem;
 }
 
@@ -926,306 +876,290 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   }
 }
 
-/* First-Visit Onboarding */
-.kids-onboarding {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  padding: 0.75rem 0.9rem;
-  border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(245, 158, 11, 0.18),
-    rgba(236, 72, 153, 0.14)
-  );
-  border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-.onboarding-emoji {
-  font-size: 1.3rem;
-  line-height: 1.3;
-}
-
-.kids-onboarding p {
-  flex: 1;
-  margin: 0;
-  font-size: 0.85rem;
-  line-height: 1.4;
-  color: var(--text);
-}
-
-.kids-onboarding p strong {
-  color: var(--text);
-}
-
-.onboarding-dismiss {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  margin: -0.6rem -0.5rem -0.6rem 0;
-  border: none;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.onboarding-dismiss:hover {
-  color: var(--text);
-}
-
-/* Listening Status & Quick Controls */
-.wake-station {
+/* Hero Playroom Stage Card */
+.playroom-stage {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.75rem 0.9rem 0.65rem;
+  border-radius: 26px;
+  background: linear-gradient(
+    180deg,
+    rgba(124, 58, 237, 0.12) 0%,
+    rgba(236, 72, 153, 0.08) 50%,
+    var(--surface) 100%
+  );
+  border: 2px solid rgba(124, 58, 237, 0.25);
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.12);
+  overflow: hidden;
 }
 
-.sleep-status {
+/* Stage Header Bar */
+.stage-header {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding: 0.65rem 1rem;
-  border-radius: 14px;
-  border: 2px solid rgba(16, 185, 129, 0.5);
-  background: linear-gradient(
-    135deg,
-    rgba(16, 185, 129, 0.2),
-    rgba(6, 182, 212, 0.2)
-  );
+  justify-content: space-between;
+  gap: 0.5rem;
+  z-index: 2;
+}
+
+.stage-status-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.stage-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text);
-  font-size: 0.88rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  text-align: left;
   cursor: pointer;
-  transition: transform 0.15s ease;
+  backdrop-filter: blur(8px);
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
 }
 
-.sleep-status:hover {
-  transform: translateY(-1px);
+.stage-chip:hover {
+  transform: scale(1.04);
+  background: rgba(255, 255, 255, 0.14);
 }
 
-.sleep-status:active {
-  transform: scale(0.98);
+.stage-chip:active {
+  transform: scale(0.96);
 }
 
-.sleep-icon {
-  font-size: 1.3rem;
+.wake-chip.awake {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.chip-glow-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
   flex-shrink: 0;
 }
 
-/* Quick Control Pills */
-.quick-controls {
-  display: grid;
-  /* A fixed 2-column grid always breaks evenly (2+2), unlike flex-wrap
-     which - depending on how each pill's label happens to measure at a
-     given screen width - could wrap into an uneven 3-then-1. */
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.6rem;
+.wake-chip.awake .chip-glow-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
 }
 
-@media (min-width: 480px) {
-  .quick-controls {
-    grid-template-columns: repeat(4, 1fr);
+.mic-chip.active {
+  border-color: rgba(6, 182, 212, 0.5);
+  background: rgba(6, 182, 212, 0.18);
+  color: #22d3ee;
+}
+
+.mic-chip.hearing {
+  border-color: rgba(245, 158, 11, 0.6);
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+  animation: pulseChip 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulseChip {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.05);
   }
 }
 
-.control-pill {
+.stage-tools-group {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tool-btn:hover {
+  transform: scale(1.12);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.tool-btn:active {
+  transform: scale(0.92);
+}
+
+.tool-btn.active {
+  background: rgba(124, 58, 237, 0.3);
+  border-color: #a855f7;
+  color: #e9d5ff;
+}
+
+/* Mascot Arena */
+.stage-mascot-arena {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 0;
+  padding: 0.1rem 0;
+}
+
+/* In-situ Beaming Pulse */
+.stage-beaming-pulse {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  pointer-events: none;
+}
+
+
+.beaming-sonic-ring {
+  position: absolute;
+  width: 140px;
+  height: 60px;
+  border-radius: 50%;
+  border: 2px solid rgba(236, 72, 153, 0.6);
+  animation: sonicRings 1.2s infinite ease-out;
+}
+
+.beaming-sonic-ring.ring-2 {
+  animation-delay: 0.6s;
+}
+
+@keyframes sonicRings {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.beam-pop-enter-active,
+.beam-pop-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.beam-pop-enter-from,
+.beam-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.85);
+}
+
+/* Stage Bottom Guide */
+.stage-footer-guide {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.45rem;
-  padding: 0.65rem 0.8rem;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.18s ease;
-}
-
-.control-pill:hover {
-  background: var(--surface-hover);
-}
-
-.control-pill.active {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: #10b981;
-  color: #10b981;
-}
-
-.control-pill.sfx-pill.active {
-  background: rgba(124, 58, 237, 0.18);
-  border-color: #a855f7;
-  color: #c084fc;
-}
-
-.control-pill.read-pill.active {
-  background: rgba(6, 182, 212, 0.18);
-  border-color: #06b6d4;
-  color: #22d3ee;
-}
-
-.control-pill.haptics-pill.active {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: #f59e0b;
-  color: #fbbf24;
-}
-
-.pill-icon {
-  font-size: 1.1rem;
-}
-
-/* Friendly audio proximity guide */
-.audio-guide-pill {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.8rem;
-  border-radius: 12px;
-  background: rgba(6, 182, 212, 0.12);
-  border: 1px solid rgba(6, 182, 212, 0.25);
-  color: #22d3ee;
-  font-size: 0.8rem;
-  font-weight: 600;
+  margin-top: 0.75rem;
+  padding: 0.22rem 0.8rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 500;
   text-align: center;
+  user-select: none;
 }
 
-.guide-icon {
-  font-size: 1rem;
-  flex-shrink: 0;
+.guide-speaker-icon {
+  font-size: 0.85rem;
 }
 
-.kids-error {
-  margin: 0;
-  font-size: 0.82rem;
+.stage-error {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
   color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-  padding: 0.4rem 0.8rem;
-  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.12);
+  padding: 0.25rem 0.65rem;
+  border-radius: 6px;
 }
 
-/* Beaming magic banner - fixed/overlaid on top of the page instead of
-   sitting in normal flow, so it doesn't shove everything below it down
-   when it appears and back up when it disappears. */
-.beaming-banner {
-  position: fixed;
-  top: max(0.8rem, env(safe-area-inset-top));
-  left: 1rem;
-  right: 1rem;
-  max-width: 480px;
-  margin: 0 auto;
-  z-index: 40;
+/* Compact Discovery & Surprise Bar */
+.discovery-capsule-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.6rem;
-  padding: 0.6rem 1rem;
-  border-radius: 14px;
-  background: linear-gradient(
-    90deg,
-    rgba(245, 158, 11, 0.95),
-    rgba(236, 72, 153, 0.95)
-  );
-  border: 1px solid rgba(245, 158, 11, 0.5);
-  color: var(--text);
-  font-size: 0.9rem;
-  font-weight: 700;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
-  animation: pulseBeaming 1s infinite alternate ease-in-out;
 }
 
-.beam-fade-enter-active,
-.beam-fade-leave-active {
-  transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
-}
-
-.beam-fade-enter-from,
-.beam-fade-leave-to {
-  opacity: 0;
-  transform: translate(0, -8px);
-}
-
-@keyframes pulseBeaming {
-  0% {
-    transform: scale(0.99);
-    opacity: 0.85;
-  }
-  100% {
-    transform: scale(1.01);
-    opacity: 1;
-  }
-}
-
-.beaming-pulse {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #f59e0b;
-  flex-shrink: 0;
-  animation: beamingDot 0.6s infinite alternate ease-in-out;
-}
-
-@keyframes beamingDot {
-  0% {
-    opacity: 0.4;
-    transform: scale(0.8);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-
-/* Sound Collection & Surprise Me */
-.discovery-panel {
+.discovery-capsule {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0.9rem 1.1rem;
+  padding: 0.55rem 0.9rem;
   border-radius: 18px;
   background: var(--surface);
   border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.discovery-info {
-  flex: 1;
-  min-width: 0;
+.capsule-progress-group {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
-.discovery-header {
+.capsule-count-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.4rem;
   flex-wrap: wrap;
-  gap: 0.4rem;
-  margin-bottom: 0.4rem;
 }
 
-.discovery-title-group {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.85rem;
-  font-weight: 800;
+.capsule-title {
+  font-size: 0.82rem;
+  font-weight: 700;
   color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
-.rank-badge {
+.capsule-title strong {
+  color: #f59e0b;
+}
+
+.capsule-rank-tag {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  padding: 0.2rem 0.6rem;
+  padding: 0.15rem 0.5rem;
   border-radius: 9999px;
   background: linear-gradient(
     135deg,
@@ -1233,94 +1167,79 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
     rgba(236, 72, 153, 0.2)
   );
   border: 1px solid rgba(245, 158, 11, 0.4);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
   color: #fbbf24;
 }
 
-.discovery-bar-track {
-  height: 8px;
+.capsule-track {
+  height: 6px;
   border-radius: 9999px;
   background: var(--border);
   overflow: hidden;
 }
 
-.discovery-bar-fill {
+.capsule-fill {
   height: 100%;
   border-radius: 9999px;
   background: linear-gradient(90deg, #f59e0b, #ec4899);
   transition: width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.discovery-count {
-  margin: 0.35rem 0 0;
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
-.discovery-count.celebrate {
-  color: #f59e0b;
-  font-weight: 700;
-  animation: celebratePop 0.4s ease-in-out;
-}
-
-@keyframes celebratePop {
-  0% {
-    transform: scale(0.9);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.surprise-btn {
+.capsule-surprise-btn {
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
-  gap: 0.15rem;
-  padding: 0.65rem 1rem;
-  border-radius: 16px;
+  gap: 0.35rem;
+  padding: 0.65rem 0.95rem;
+  border-radius: 18px;
   border: none;
   background: linear-gradient(135deg, #f59e0b, #ec4899);
   color: white;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 16px rgba(236, 72, 153, 0.3);
-  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 0 #be185d, 0 8px 18px rgba(236, 72, 153, 0.35);
+  transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
 }
 
-.surprise-btn:hover {
-  transform: scale(1.05);
+.capsule-surprise-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #be185d, 0 10px 22px rgba(236, 72, 153, 0.45);
 }
 
-.surprise-btn:active {
-  transform: scale(0.94);
+.capsule-surprise-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #be185d, 0 3px 8px rgba(236, 72, 153, 0.3);
 }
 
-.surprise-icon {
-  font-size: 1.3rem;
+.capsule-surprise-btn:hover .surprise-dice-icon {
+  transform: rotate(20deg) scale(1.15);
 }
 
-.surprise-btn:disabled {
-  cursor: not-allowed;
+.surprise-dice-icon {
+  font-size: 1.1rem;
+  transition: transform 0.2s ease;
+}
+
+.capsule-surprise-btn:disabled {
   opacity: 0.55;
+  cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
-/* Category Tabs */
+/* Playful Segmented Category Tabs */
 .category-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.45rem;
+  gap: 0.35rem;
   background: var(--surface);
-  padding: 0.4rem;
-  border-radius: 18px;
+  padding: 0.35rem;
+  border-radius: 20px;
   border: 1px solid var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .tab-btn {
@@ -1328,47 +1247,51 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.2rem;
-  padding: 0.65rem 0.3rem;
-  border-radius: 14px;
-  border: none;
+  gap: 0.15rem;
+  padding: 0.65rem 0.2rem;
+  border-radius: 16px;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
   user-select: none;
+  min-height: 48px;
 }
 
 .tab-emoji {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   transition: transform 0.2s ease;
 }
 
 .tab-label {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-align: center;
+  line-height: 1.15;
 }
 
 .tab-btn:hover {
   color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .tab-btn.active {
   background: linear-gradient(
     135deg,
-    rgba(124, 58, 237, 0.3),
-    rgba(236, 72, 153, 0.25)
+    rgba(124, 58, 237, 0.28),
+    rgba(236, 72, 153, 0.22)
   );
+  border-color: rgba(124, 58, 237, 0.4);
   color: var(--text);
-  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.2);
+  box-shadow: 0 4px 14px rgba(124, 58, 237, 0.22);
 }
 
 .tab-btn.active .tab-emoji {
-  transform: scale(1.18);
+  transform: scale(1.16);
 }
 
-/* Grid Cards */
+/* Tactile 3D Toy Cards Grid */
 .play-grid-section {
   display: flex;
   flex-direction: column;
@@ -1377,64 +1300,87 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 .grid-cards {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem;
+  gap: 0.85rem;
 }
 
-@media (min-width: 540px) {
+@media (min-width: 520px) {
   .grid-cards {
-    grid-template-columns: repeat(auto-fill, minmax(145px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   }
 }
 
 .play-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 1.1rem 0.6rem;
-  border-radius: 20px;
-  background: var(--surface);
-  border: 2px solid var(--border);
+  padding: 1.15rem 0.6rem 0.95rem;
+  border-radius: 22px;
+  background: var(--card-bg);
+  border: 2px solid var(--card-border);
   color: var(--text);
   cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   user-select: none;
   touch-action: manipulation;
-  position: relative;
   overflow: hidden;
+  box-shadow: 0 6px 0 var(--card-bevel), var(--card-shadow);
+  transition:
+    transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+    border-color 0.16s ease,
+    background 0.16s ease;
 }
 
-.play-card:hover {
-  transform: translateY(-3px) scale(1.02);
+.play-card:hover:not(:disabled) {
+  transform: translateY(-3px);
   border-color: var(--card-color);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 9px 0 var(--card-bevel-hover), 0 14px 26px rgba(0, 0, 0, 0.25);
 }
 
-.play-card:active {
-  transform: scale(0.94);
+.play-card:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--card-bevel), 0 4px 10px rgba(0, 0, 0, 0.12);
+}
+
+.play-card.busy {
+  background: var(--card-color);
+  color: #ffffff;
+  border-color: transparent;
+  transform: translateY(2px);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25);
+  animation: cardSquish 0.35s ease-in-out infinite alternate;
+}
+
+@keyframes cardSquish {
+  0% {
+    transform: translateY(2px) scale(0.97);
+  }
+  100% {
+    transform: translateY(2px) scale(1.02);
+  }
 }
 
 .card-badge {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 7px;
+  right: 7px;
   font-size: 0.65rem;
-  font-weight: 700;
-  padding: 0.15rem 0.45rem;
+  font-weight: 800;
+  padding: 0.14rem 0.45rem;
   border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--muted);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  letter-spacing: 0.02em;
+  background: var(--badge-new-bg);
+  color: var(--badge-new-color);
+  border: 1px solid var(--badge-new-border);
+  letter-spacing: 0.01em;
   transition: all 0.2s ease;
 }
 
 .card-badge.found {
-  background: rgba(16, 185, 129, 0.18);
-  color: #10b981;
-  border-color: rgba(16, 185, 129, 0.35);
+  background: var(--badge-found-bg);
+  color: var(--badge-found-color);
+  border-color: var(--badge-found-border);
 }
 
 .play-card.busy .card-badge {
@@ -1443,46 +1389,30 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 .play-card.highlighted {
   border-color: #f59e0b;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5), 0 8px 24px rgba(245, 158, 11, 0.35);
-  animation: surpriseGlow 1.1s ease-in-out infinite alternate;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.6), 0 6px 0 rgba(0, 0, 0, 0.35), 0 10px 24px rgba(245, 158, 11, 0.4);
+  animation: surpriseSpotlight 1s ease-in-out infinite alternate;
 }
 
-@keyframes surpriseGlow {
+@keyframes surpriseSpotlight {
   0% {
     transform: scale(1.02);
-    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 6px 18px rgba(245, 158, 11, 0.25);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 5px 0 rgba(0, 0, 0, 0.35), 0 8px 18px rgba(245, 158, 11, 0.3);
   }
   100% {
     transform: scale(1.06);
-    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.8), 0 10px 28px rgba(245, 158, 11, 0.5);
-  }
-}
-
-.play-card.busy {
-  background: var(--card-color);
-  color: #ffffff;
-  border-color: transparent;
-  animation: cardBounce 0.4s ease-in-out infinite alternate;
-}
-
-@keyframes cardBounce {
-  0% {
-    transform: scale(0.96);
-  }
-  100% {
-    transform: scale(1.02);
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.8), 0 7px 0 rgba(0, 0, 0, 0.35), 0 12px 28px rgba(245, 158, 11, 0.55);
   }
 }
 
 .card-emoji {
-  font-size: 2.3rem;
-  margin-bottom: 0.35rem;
-  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
-  transition: transform 0.2s ease;
+  font-size: 2.4rem;
+  margin-bottom: 0.3rem;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.2));
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .play-card:hover .card-emoji {
-  transform: scale(1.15) rotate(4deg);
+  transform: scale(1.18) rotate(4deg);
 }
 
 .card-title {
@@ -1493,18 +1423,20 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 .card-subtitle {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   color: var(--muted);
   line-height: 1.2;
 }
 
 .play-card.busy .card-subtitle {
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .play-card:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+  box-shadow: none;
+  transform: none;
 }
 
 .play-card.busy:disabled {
@@ -1515,7 +1447,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 .mood-box {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.9rem;
 }
 
 .mood-header {
@@ -1523,14 +1455,15 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 1.4rem 1.2rem;
-  border-radius: 22px;
+  padding: 1.3rem 1.1rem;
+  border-radius: 24px;
   background: linear-gradient(
     135deg,
-    rgba(139, 92, 246, 0.15),
-    rgba(6, 182, 212, 0.15)
+    rgba(139, 92, 246, 0.16),
+    rgba(6, 182, 212, 0.14)
   );
-  border: 1px solid rgba(139, 92, 246, 0.3);
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.1);
 }
 
 .mood-header h3 {
@@ -1540,8 +1473,8 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 .mood-header p {
-  margin: 0 0 1rem;
-  font-size: 0.88rem;
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
   color: var(--muted);
   max-width: 320px;
 }
@@ -1555,34 +1488,37 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   border: none;
   background: linear-gradient(135deg, #8b5cf6, #06b6d4);
   color: white;
-  font-size: 1rem;
+  font-size: 0.98rem;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.35);
-  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 0 #6d28d9, 0 8px 20px rgba(139, 92, 246, 0.35);
+  transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.ask-mood-btn:hover {
-  transform: scale(1.05);
+.ask-mood-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 #6d28d9, 0 10px 24px rgba(139, 92, 246, 0.45);
 }
 
-.ask-mood-btn:active {
-  transform: scale(0.96);
+.ask-mood-btn:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 #6d28d9, 0 3px 8px rgba(139, 92, 246, 0.25);
 }
 
 .ask-mood-btn.busy {
-  opacity: 0.8;
-  filter: brightness(1.2);
+  opacity: 0.85;
+  filter: brightness(1.15);
 }
 
 .ask-mood-btn:disabled:not(.busy) {
   cursor: not-allowed;
   opacity: 0.55;
   transform: none;
+  box-shadow: none;
 }
 
 .crystal-icon {
-  font-size: 1.3rem;
+  font-size: 1.25rem;
 }
 
 .mic-status {
@@ -1634,11 +1570,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   align-items: center;
   gap: 1.1rem;
   width: 100%;
-  padding: 1.2rem 1.4rem;
-  border-radius: 20px;
+  padding: 1.1rem 1.3rem;
+  border-radius: 22px;
   background: var(--surface);
   border: 2px solid var(--badge-color);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.25), 0 10px 24px rgba(0, 0, 0, 0.15);
 }
 
 .badge-emoji {
@@ -1654,7 +1590,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 }
 
 .badge-title {
-  margin: 0 0 0.3rem;
+  margin: 0 0 0.25rem;
   font-size: 1.15rem;
   font-weight: 800;
   color: var(--badge-color);
@@ -1662,7 +1598,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 .badge-desc {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   color: var(--text);
   line-height: 1.4;
 }
@@ -1675,21 +1611,21 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
   border: 1px solid var(--badge-color);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text);
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.16s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .read-again-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  transform: scale(1.03);
+  background: rgba(255, 255, 255, 0.16);
+  transform: scale(1.04);
 }
 
 .read-again-btn:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 .personality-empty {
@@ -1697,12 +1633,12 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding: 1.4rem 1rem;
-  border-radius: 18px;
+  padding: 1.3rem 1rem;
+  border-radius: 20px;
   background: var(--surface);
-  border: 1px dashed var(--border);
+  border: 2px dashed var(--border);
   color: var(--muted);
-  gap: 0.5rem;
+  gap: 0.45rem;
 }
 
 .empty-icon {
@@ -1711,34 +1647,162 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 .personality-empty p {
   margin: 0;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   line-height: 1.4;
 }
 
-/* Pro Tip Card */
-.kids-tip-card {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.85rem 1.1rem;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-}
+@media (prefers-color-scheme: light) {
+  .play-card {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border: 1.5px solid #e2e8f0;
+    box-shadow: 0 5px 0 #cbd5e1, 0 6px 16px rgba(148, 163, 184, 0.15);
+  }
 
-.tip-icon {
-  font-size: 1.6rem;
-  flex-shrink: 0;
-}
+  .play-card:hover:not(:disabled) {
+    border-color: var(--card-color);
+    box-shadow: 0 8px 0 #94a3b8, 0 10px 22px rgba(100, 116, 139, 0.2);
+  }
 
-.tip-text {
-  margin: 0;
-  font-size: 0.84rem;
-  color: var(--muted);
-  line-height: 1.35;
-}
+  .play-card:active:not(:disabled) {
+    transform: translateY(4px);
+    box-shadow: 0 1px 0 #cbd5e1, 0 2px 6px rgba(100, 116, 139, 0.12);
+  }
 
-.tip-text strong {
-  color: var(--text);
+  .play-card.discovered {
+    border-color: #86efac;
+  }
+
+  .card-title {
+    color: #0f172a;
+  }
+
+  .card-subtitle {
+    color: #64748b;
+  }
+
+  .category-tabs {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 4px 16px rgba(148, 163, 184, 0.12);
+  }
+
+  .tab-btn {
+    color: #64748b;
+  }
+
+  .tab-btn:hover {
+    background: #f1f5f9;
+    color: #0f172a;
+  }
+
+  .tab-btn.active {
+    background: linear-gradient(135deg, #ede9fe 0%, #fce7f3 100%);
+    border-color: #c4b5fd;
+    color: #6d28d9;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+  }
+
+  .discovery-capsule {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 4px 16px rgba(148, 163, 184, 0.1);
+  }
+
+  .capsule-track {
+    background: #e2e8f0;
+  }
+
+  .capsule-title strong {
+    color: #d97706;
+  }
+
+  .capsule-rank-tag {
+    background: linear-gradient(135deg, #fef3c7 0%, #fce7f3 100%);
+    border-color: #fde68a;
+    color: #b45309;
+  }
+
+  .capsule-surprise-btn {
+    box-shadow: 0 4px 0 #be185d, 0 8px 18px rgba(236, 72, 153, 0.28);
+  }
+
+  .capsule-surprise-btn:hover:not(:disabled) {
+    box-shadow: 0 6px 0 #be185d, 0 10px 22px rgba(236, 72, 153, 0.38);
+  }
+
+  .playroom-stage {
+    background: linear-gradient(180deg, #f5f3ff 0%, #fdf2f8 55%, #ffffff 100%);
+    border-color: #ddd6fe;
+    box-shadow: 0 8px 30px rgba(168, 85, 247, 0.08);
+  }
+
+  .stage-chip {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #1e293b;
+    box-shadow: 0 2px 6px rgba(148, 163, 184, 0.12);
+  }
+
+  .stage-chip:hover {
+    background: #f8fafc;
+  }
+
+  .wake-chip.awake {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #15803d;
+  }
+
+  .wake-chip.awake .chip-glow-dot {
+    background: #16a34a;
+    box-shadow: 0 0 6px #16a34a;
+  }
+
+  .mic-chip.active {
+    background: #cffafe;
+    border-color: #67e8f9;
+    color: #0e7490;
+  }
+
+  .tool-btn {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #64748b;
+    box-shadow: 0 2px 6px rgba(148, 163, 184, 0.1);
+  }
+
+  .tool-btn:hover {
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .tool-btn.active {
+    background: #ede9fe;
+    border-color: #c4b5fd;
+    color: #6d28d9;
+  }
+
+  .stage-footer-guide {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    color: #64748b;
+    box-shadow: 0 2px 6px rgba(148, 163, 184, 0.06);
+  }
+
+  .mood-header {
+    background: linear-gradient(135deg, #f5f3ff 0%, #ecfeff 100%);
+    border-color: #c4b5fd;
+  }
+
+  .personality-card {
+    background: #ffffff;
+    border-color: #e2e8f0;
+    box-shadow: 0 4px 16px rgba(148, 163, 184, 0.12);
+  }
+
+  .personality-empty {
+    background: #ffffff;
+    border-color: #cbd5e1;
+  }
 }
 </style>
