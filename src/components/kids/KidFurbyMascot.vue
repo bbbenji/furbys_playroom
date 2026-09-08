@@ -2,7 +2,7 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { useFurbyStore } from "../../stores/furby";
 import { vibrate } from "./haptics";
-import { playGiggle } from "./soundFx";
+import { playChime, playGiggle } from "./soundFx";
 
 const store = useFurbyStore();
 const isWiggling = ref(false);
@@ -43,6 +43,14 @@ onUnmounted(() => {
 
 function onFurbyClick() {
   vibrate(25);
+  if (store.mascotMood === "sleeping") {
+    if (store.soundFxEnabled) playChime();
+    store.triggerMascotReaction("surprised", 1200);
+    setTimeout(() => {
+      store.triggerMascotReaction("happy", 2000);
+    }, 1200);
+    return;
+  }
   if (store.soundFxEnabled) {
     playGiggle();
   }

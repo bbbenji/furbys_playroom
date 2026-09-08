@@ -20,10 +20,11 @@ const store = useFurbyStore()
         class="cmd-btn"
         :class="{ busy: store.sending === cmd.id }"
         :disabled="store.sending !== null"
-        :title="cmd.description"
+        :title="cmd.label + ' (#' + cmd.id + '): ' + cmd.description"
         @click="store.send(cmd.id)"
       >
-        {{ cmd.label }}
+        <span class="cmd-label">{{ cmd.label }}</span>
+        <span class="cmd-id">#{{ cmd.id }}</span>
       </button>
     </div>
   </section>
@@ -46,24 +47,44 @@ h2 {
   gap: 0.5rem;
 }
 .cmd-btn {
-  padding: 0.7rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.65rem 0.5rem;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   font-size: 0.9rem;
   cursor: pointer;
-  transition: transform 0.08s ease, background 0.15s ease;
+  transition: transform 0.08s ease, background 0.15s ease, border-color 0.15s ease;
 }
-.cmd-btn:hover {
+.cmd-btn:hover:not(:disabled) {
   background: var(--surface-hover);
+  border-color: var(--accent);
 }
-.cmd-btn:active {
+.cmd-btn:active:not(:disabled) {
   transform: scale(0.96);
+}
+.cmd-label {
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.2;
+}
+.cmd-id {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
 }
 .cmd-btn.busy {
   background: var(--accent);
   color: white;
+  border-color: transparent;
+}
+.cmd-btn.busy .cmd-id {
+  color: rgba(255, 255, 255, 0.85);
 }
 .cmd-btn:disabled {
   cursor: not-allowed;

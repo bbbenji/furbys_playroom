@@ -244,7 +244,10 @@ export const useFurbyStore = defineStore("furby", {
         // step (that's the only reason we know the 35s re-send interval at
         // all - see KEEP_ALIVE_INTERVAL_MS) - so ensure it here rather than
         // requiring a separate "wake up" tap first.
-        if (!transmitter.keepAliveActive) await this._startKeepAlive();
+        if (!transmitter.keepAliveActive) {
+          await this._startKeepAlive();
+          if (this.sendError) return;
+        }
 
         this.triggerMascotReaction(getMoodForCommand(command));
         await transmitter.send(command);
@@ -253,6 +256,40 @@ export const useFurbyStore = defineStore("furby", {
         this.sendError = err instanceof Error ? err.message : String(err);
       } finally {
         this.sending = null;
+      }
+    },
+
+    /** Plays a short ultrasonic calibration pip for hardware/microphone loopback testing. */
+    playTestTone(freq = 17500, durationMs = 300) {
+      this.unlockAudio();
+      if (typeof window === "undefined") return;
+      const Ctor =
+        window.AudioContext ??
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      if (!Ctor) return;
+      try {
+        const ctx = new Ctor();
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(freq, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.35, now + 0.04);
+        gain.gain.setValueAtTime(0.35, now + durationMs / 1000 - 0.04);
+        gain.gain.linearRampToValueAtTime(0.001, now + durationMs / 1000);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + durationMs / 1000 + 0.05);
+        setTimeout(() => {
+          void ctx.close().catch(() => {});
+        }, durationMs + 200);
+      } catch {
+        // ignore
       }
     },
 

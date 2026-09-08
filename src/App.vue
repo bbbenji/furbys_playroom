@@ -33,9 +33,11 @@ onMounted(() => {
 </script>
 
 <template>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
   <header>
     <div class="header-main">
-      <div>
+      <div class="title-area">
         <h1>
           {{ store.uiMode === "kids" ? "Furby's Playroom" : "Furby Console" }}
         </h1>
@@ -46,6 +48,26 @@ onMounted(() => {
               : "Acoustic ComAir remote for 2012 / Furby Boom toys. Point speaker at Furby's chest, volume ~80%."
           }}
         </p>
+      </div>
+
+      <!-- Quick Status Badges -->
+      <div class="header-status-pills" role="status" aria-live="polite">
+        <span
+          class="status-badge"
+          :class="{ active: store.keepAliveActive }"
+          :title="store.keepAliveActive ? 'Furby listening mode is active' : 'Furby listening mode is idle / asleep'"
+        >
+          <span class="dot" aria-hidden="true"></span>
+          <span>{{ store.keepAliveActive ? "Awake" : "Idle" }}</span>
+        </span>
+        <span
+          class="status-badge mic-badge"
+          :class="{ active: store.micActive }"
+          :title="store.micActive ? 'Microphone listening for Furby' : 'Microphone is off'"
+        >
+          <span class="dot" aria-hidden="true"></span>
+          <span>{{ store.micActive ? "Mic On" : "Mic Off" }}</span>
+        </span>
       </div>
     </div>
 
@@ -70,7 +92,7 @@ onMounted(() => {
     </nav>
   </header>
 
-  <main>
+  <main id="main-content">
     <Transition name="view-fade" mode="out-in">
       <!-- Kids Friendly Playroom UI -->
       <KidsView v-if="store.uiMode === 'kids'" />
@@ -143,8 +165,47 @@ header {
 }
 .header-main {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: 0.8rem;
+}
+.title-area {
+  flex: 1;
+}
+.header-status-pills {
+  display: flex;
+  gap: 0.35rem;
+  flex-shrink: 0;
+  align-items: center;
+  margin-top: 0.2rem;
+}
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.status-badge.active {
+  color: var(--text);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.1);
+}
+.status-badge .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.status-badge.active .dot {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
 }
 h1 {
   margin: 0 0 0.3rem;

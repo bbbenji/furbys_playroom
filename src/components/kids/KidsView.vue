@@ -16,6 +16,22 @@ import {
 const store = useFurbyStore();
 type TabKey = "food" | "tricks" | "music" | "mood";
 const activeTab = ref<TabKey>("tricks");
+const TAB_KEYS: TabKey[] = ["tricks", "food", "music", "mood"];
+
+function onTabKeydown(e: KeyboardEvent, currentTab: TabKey) {
+  const idx = TAB_KEYS.indexOf(currentTab);
+  if (e.key === "ArrowRight") {
+    e.preventDefault();
+    const next = TAB_KEYS[(idx + 1) % TAB_KEYS.length];
+    activeTab.value = next;
+    document.getElementById(`tab-${next}`)?.focus();
+  } else if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    const prev = TAB_KEYS[(idx - 1 + TAB_KEYS.length) % TAB_KEYS.length];
+    activeTab.value = prev;
+    document.getElementById(`tab-${prev}`)?.focus();
+  }
+}
 
 const KIDS_ONBOARDING_KEY = "furby-console:kids-onboarding-dismissed:v1";
 const onboardingDismissed = ref(
@@ -557,7 +573,9 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           {{
             justDiscovered
               ? "🎉 New sound discovered!"
-              : `${discoveredCount} / ${TOTAL_DISCOVERABLE} sounds found!`
+              : discoveredCount === TOTAL_DISCOVERABLE
+                ? `🏆 All ${TOTAL_DISCOVERABLE} sounds found! Master Collector!`
+                : `${discoveredCount} / ${TOTAL_DISCOVERABLE} sounds found!`
           }}
         </p>
       </div>
@@ -582,6 +600,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         :aria-selected="activeTab === 'tricks'"
         aria-controls="panel-tricks"
         @click="activeTab = 'tricks'"
+        @keydown="onTabKeydown($event, 'tricks')"
       >
         <span class="tab-emoji">🤪</span>
         <span class="tab-label">Silly Tricks</span>
@@ -595,6 +614,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         :aria-selected="activeTab === 'food'"
         aria-controls="panel-food"
         @click="activeTab = 'food'"
+        @keydown="onTabKeydown($event, 'food')"
       >
         <span class="tab-emoji">🍕</span>
         <span class="tab-label">Feed Furby</span>
@@ -608,6 +628,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         :aria-selected="activeTab === 'music'"
         aria-controls="panel-music"
         @click="activeTab = 'music'"
+        @keydown="onTabKeydown($event, 'music')"
       >
         <span class="tab-emoji">🎶</span>
         <span class="tab-label">Dance Party</span>
@@ -621,6 +642,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         :aria-selected="activeTab === 'mood'"
         aria-controls="panel-mood"
         @click="activeTab = 'mood'"
+        @keydown="onTabKeydown($event, 'mood')"
       >
         <span class="tab-emoji">🔮</span>
         <span class="tab-label">Furby Mood</span>

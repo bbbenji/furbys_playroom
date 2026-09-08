@@ -5,14 +5,30 @@
 // audioWorklet.addModule(), not bundled by Vite.
 
 const FREQUENCIES = { X: 17500, '0': 16386, '1': 16943, '3': 18057, '2': 18614 }
-const WINDOW_SIZE = 1024
+// 512 samples (~11.6ms at 44.1kHz / ~10.7ms at 48kHz) fits snugly inside the
+// 16-20ms symbol duration without straddling symbol boundaries, while preserving
+// ~86Hz frequency resolution (far finer than the 557Hz ComAir tone spacing).
+const WINDOW_SIZE = 512
 
-function goertzelMagnitude(samples, freq, sr) {
+function computeCoeffs(sr) {
+  const coeffs = {}
+  for (const symbol in FREQUENCIES) {
+    const freq = FREQUENCIES[symbol]
+    const k = Math.round((WINDOW_SIZE * freq) / sr)
+    const omega = (2 * Math.PI * k) / WINDOW_SIZE
+    const cosine = Math.cos(omega)
+    coeffs[symbol] = {
+      coeff: 2 * cosine,
+      cosine,
+      sinOmega: Math.sin(omega),
+    }
+  }
+  return coeffs
+}
+
+function goertzelMagnitude(samples, config) {
   const n = samples.length
-  const k = Math.round((n * freq) / sr)
-  const omega = (2 * Math.PI * k) / n
-  const cosine = Math.cos(omega)
-  const coeff = 2 * cosine
+  const { coeff, cosine, sinOmega } = config
   let q0 = 0
   let q1 = 0
   let q2 = 0
@@ -22,7 +38,7 @@ function goertzelMagnitude(samples, freq, sr) {
     q1 = q0
   }
   const real = q1 - q2 * cosine
-  const imag = q2 * Math.sin(omega)
+  const imag = q2 * sinOmega
   return Math.sqrt(real * real + imag * imag) / n
 }
 
@@ -31,11 +47,18 @@ class GoertzelProcessor extends AudioWorkletProcessor {
     super()
     this.buffer = new Float32Array(WINDOW_SIZE)
     this.index = 0
+    this.lastSampleRate = sampleRate
+    this.coeffs = computeCoeffs(sampleRate)
   }
 
   process(inputs) {
     const channel = inputs[0] && inputs[0][0]
     if (!channel) return true
+
+    if (sampleRate !== this.lastSampleRate) {
+      this.lastSampleRate = sampleRate
+      this.coeffs = computeCoeffs(sampleRate)
+    }
 
     for (let i = 0; i < channel.length; i++) {
       this.buffer[this.index++] = channel[i]
@@ -51,8 +74,8 @@ class GoertzelProcessor extends AudioWorkletProcessor {
     let best = null
     let bestMag = 0
     const magnitudes = {}
-    for (const symbol in FREQUENCIES) {
-      const mag = goertzelMagnitude(this.buffer, FREQUENCIES[symbol], sampleRate)
+    for (const symbol in this.coeffs) {
+      const mag = goertzelMagnitude(this.buffer, this.coeffs[symbol])
       magnitudes[symbol] = mag
       if (mag > bestMag) {
         bestMag = mag

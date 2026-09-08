@@ -12,9 +12,12 @@ function dismiss() {
 
 <template>
   <p v-if="!dismissed" class="hint">
-    New here? Furby ignores most commands unless it's awake - tap
-    <strong>Enable listening mode</strong> first.
-    <button class="dismiss" aria-label="Dismiss" @click="dismiss">✕</button>
+    <span class="hint-icon" aria-hidden="true">💡</span>
+    <span class="hint-text">
+      <strong>Pro Tip:</strong> Tapping any command automatically wakes Furby and keeps it in listening mode.
+      Hold your device speaker close to Furby's chest at ~80% volume.
+    </span>
+    <button class="dismiss" aria-label="Dismiss this tip" @click="dismiss">✕</button>
   </p>
 </template>
 

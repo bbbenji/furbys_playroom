@@ -22,14 +22,24 @@ import {
 const TWO_PI = 2 * Math.PI;
 
 class SampleWriter {
-  private chunks: number[] = [];
+  private buffer: Float32Array;
+  private count = 0;
+
+  constructor(initialCapacity = 70000) {
+    this.buffer = new Float32Array(initialCapacity);
+  }
 
   push(sample: number) {
-    this.chunks.push(sample);
+    if (this.count >= this.buffer.length) {
+      const next = new Float32Array(this.buffer.length * 2);
+      next.set(this.buffer);
+      this.buffer = next;
+    }
+    this.buffer[this.count++] = sample;
   }
 
   toFloat32Array(): Float32Array {
-    return Float32Array.from(this.chunks);
+    return this.buffer.slice(0, this.count);
   }
 }
 

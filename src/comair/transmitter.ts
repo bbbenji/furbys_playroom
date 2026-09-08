@@ -8,6 +8,7 @@ import { ComAirPlayer } from './player'
 export class ComAirTransmitter {
   private player = new ComAirPlayer()
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null
+  private startingKeepAlive: Promise<void> | null = null
   private sentHandlers: Array<(command: number) => void> = []
 
   onSent(handler: (command: number) => void): void {
@@ -30,14 +31,25 @@ export class ComAirTransmitter {
 
   async startKeepAlive(): Promise<void> {
     if (this.keepAliveTimer) return
-    await this.send(KEEP_ALIVE_COMMAND)
-    this.keepAliveTimer = setInterval(() => {
-      void this.send(KEEP_ALIVE_COMMAND)
-    }, KEEP_ALIVE_INTERVAL_MS)
+    if (this.startingKeepAlive) return this.startingKeepAlive
+    this.startingKeepAlive = (async () => {
+      try {
+        await this.send(KEEP_ALIVE_COMMAND)
+        if (!this.keepAliveTimer) {
+          this.keepAliveTimer = setInterval(() => {
+            void this.send(KEEP_ALIVE_COMMAND)
+          }, KEEP_ALIVE_INTERVAL_MS)
+        }
+      } finally {
+        this.startingKeepAlive = null
+      }
+    })()
+    return this.startingKeepAlive
   }
 
   stopKeepAlive(): void {
     if (this.keepAliveTimer) clearInterval(this.keepAliveTimer)
     this.keepAliveTimer = null
+    this.startingKeepAlive = null
   }
 }

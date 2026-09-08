@@ -131,7 +131,7 @@ export class ComAirReceiver {
     this.lastSymbol = null;
   }
 
-  private handleSymbol(msg: SymbolMsg): void {
+  handleSymbol(msg: SymbolMsg): void {
     this.symbolHandlers.forEach((h) => h(msg));
 
     const symbol = msg.magnitude >= this.magnitudeThreshold ? msg.symbol : null;
@@ -162,10 +162,11 @@ export class ComAirReceiver {
       if (digits.length === 12) {
         const value = parsePacket(digits.join(""));
         if (value >= 0) {
-          this.collapsed = buf.slice(i + 1);
+          this.collapsed = buf.slice(i);
           this.emitPacket(value);
+          return;
         }
-        return;
+        // If checksum failed, do not return early - continue searching for the next candidate packet
       }
     }
   }

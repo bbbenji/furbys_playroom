@@ -1,10 +1,18 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { DEFAULT_RX_THRESHOLD, useFurbyStore } from "../stores/furby";
 
 const store = useFurbyStore();
 
-const SYMBOLS = ["X", "0", "1", "2", "3"] as const;
+const SYMBOLS = [
+  { symbol: "0", freq: "16.4 kHz", label: "0" },
+  { symbol: "1", freq: "16.9 kHz", label: "1" },
+  { symbol: "X", freq: "17.5 kHz", label: "X" },
+  { symbol: "3", freq: "18.1 kHz", label: "3" },
+  { symbol: "2", freq: "18.6 kHz", label: "2" },
+] as const;
+
+const isTestingTone = ref(false);
 
 /** Auto-ranges the meters to whatever signal is actually present, with a
  * small floor so a silent room doesn't make every bar look maxed out. */
@@ -27,6 +35,21 @@ function isOverThreshold(symbol: string): boolean {
   return (store.rxMagnitudes[symbol] ?? 0) >= store.rxThreshold;
 }
 
+const hasActiveTone = computed(() =>
+  SYMBOLS.some((s) => isOverThreshold(s.symbol)),
+);
+
+async function runSelfTest() {
+  isTestingTone.value = true;
+  if (!store.micActive) {
+    await store.toggleMic();
+  }
+  store.playTestTone(17500, 350);
+  setTimeout(() => {
+    isTestingTone.value = false;
+  }, 600);
+}
+
 function onThresholdInput(e: Event) {
   const value = Number((e.target as HTMLInputElement).value);
   if (Number.isFinite(value) && value >= 0) store.setRxThreshold(value);
@@ -39,35 +62,63 @@ function resetThreshold() {
 
 <template>
   <section class="rx-debug">
-    <h2>RX signal debug</h2>
+    <div class="rx-header">
+      <h2>RX signal debug</h2>
+      <button
+        type="button"
+        class="test-tone-btn"
+        :class="{ active: isTestingTone }"
+        :disabled="isTestingTone"
+        title="Plays a safe 17.5 kHz pip through your speaker to test if your mic can detect ultrasonic audio"
+        @click="runSelfTest"
+      >
+        <span aria-hidden="true">🔊</span>
+        <span>{{ isTestingTone ? "Playing 17.5 kHz..." : "Test Mic (17.5 kHz)" }}</span>
+      </button>
+    </div>
+
     <p class="hint">
-      Live Goertzel magnitude per tone, straight from the mic - this is the
-      raw signal "Ask Furby's Mood" and RX in general depend on. Enable the
-      mic above, hold your phone near Furby while it's talking, and watch
-      which bars actually move.
+      Live Goertzel magnitude per tone from the mic. Furby's ComAir carrier sits
+      at 17.5 kHz ('X'), with data digits at 16.4, 16.9, 18.1, and 18.6 kHz.
     </p>
 
-    <p v-if="!store.micActive" class="idle-note">
-      Mic is off - enable it above to see live signal.
-    </p>
+    <div v-if="!store.micActive" class="idle-note">
+      Mic is currently off. Tap <strong>Enable mic</strong> above or <strong>Test Mic</strong> to start monitoring.
+    </div>
+    <div v-else class="status-banner" :class="{ hearing: hasActiveTone }">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span v-if="hasActiveTone">
+        Tone detected! Strongest: <strong>{{ store.rxSymbol }}</strong> (cleared {{ store.rxThreshold.toFixed(4) }} threshold)
+      </span>
+      <span v-else>
+        Listening for Furby... (quiet / room ambient)
+      </span>
+    </div>
 
     <div class="meters">
       <div
-        v-for="symbol in SYMBOLS"
-        :key="symbol"
+        v-for="item in SYMBOLS"
+        :key="item.symbol"
         class="meter"
-        :class="{ current: store.rxSymbol === symbol }"
+        :class="{ current: store.rxSymbol === item.symbol }"
       >
         <div class="meter-track">
-          <div class="threshold-line" :style="{ bottom: thresholdPercent + '%' }" />
+          <div
+            class="threshold-line"
+            :style="{ bottom: thresholdPercent + '%' }"
+            title="Detection threshold"
+          />
           <div
             class="meter-fill"
-            :class="{ over: isOverThreshold(symbol) }"
-            :style="{ height: barPercent(symbol) + '%' }"
+            :class="{ over: isOverThreshold(item.symbol) }"
+            :style="{ height: barPercent(item.symbol) + '%' }"
           />
         </div>
-        <span class="meter-label">{{ symbol }}</span>
-        <span class="meter-value">{{ (store.rxMagnitudes[symbol] ?? 0).toFixed(4) }}</span>
+        <span class="meter-label">{{ item.label }}</span>
+        <span class="meter-freq">{{ item.freq }}</span>
+        <span class="meter-value">
+          {{ (store.rxMagnitudes[item.symbol] ?? 0).toFixed(4) }}
+        </span>
       </div>
     </div>
 
@@ -99,9 +150,8 @@ function resetThreshold() {
         </button>
       </div>
       <p class="threshold-hint">
-        A tone only counts as "heard" once its bar clears the dashed line.
-        Too low and noise gets picked up as false symbols; too high and real
-        tones get missed.
+        A tone only counts as "heard" once its bar clears the red line.
+        Too low: ambient room noise causes false packets. Too high: real Furby tones get missed.
       </p>
     </div>
   </section>
@@ -111,12 +161,74 @@ function resetThreshold() {
 .rx-debug {
   margin-bottom: 1.5rem;
 }
+.rx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.4rem;
+}
 h2 {
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--muted);
-  margin: 0 0 0.4rem;
+  margin: 0;
+}
+.test-tone-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.test-tone-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+}
+.test-tone-btn.active {
+  background: var(--accent);
+  color: white;
+  border-color: transparent;
+}
+.test-tone-btn:disabled {
+  opacity: 0.8;
+  cursor: wait;
+}
+.status-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.8rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--muted);
+  transition: all 0.15s ease;
+}
+.status-banner.hearing {
+  border-color: rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--text);
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  flex-shrink: 0;
+}
+.status-banner.hearing .status-dot {
+  background: #22c55e;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.8);
 }
 .hint {
   margin: 0 0 0.6rem;
@@ -131,6 +243,10 @@ h2 {
   border: 1px dashed var(--border);
   color: var(--muted);
   font-size: 0.82rem;
+}
+.meter-freq {
+  font-size: 0.68rem;
+  color: var(--muted);
 }
 .meters {
   display: flex;
