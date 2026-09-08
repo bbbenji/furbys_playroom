@@ -2,12 +2,15 @@
 import { onMounted, onUnmounted, ref } from "vue";
 import { useFurbyStore } from "../../stores/furby";
 import { vibrate } from "./haptics";
-import { playChime, playGiggle } from "./soundFx";
+import { playBoing, playChew, playChime, playGiggle } from "./soundFx";
 
 const store = useFurbyStore();
 const isWiggling = ref(false);
 const showHearts = ref(false);
 const isBlinking = ref(false);
+
+const eyeOffsetX = ref(0);
+const eyeOffsetY = ref(0);
 
 let blinkTimer: ReturnType<typeof setTimeout> | null = null;
 let blinkCloseTimer: ReturnType<typeof setTimeout> | null = null;
@@ -20,13 +23,10 @@ function closeEyes(holdMs: number) {
 }
 
 function scheduleNextBlink() {
-  // Real blinks land roughly every 2-6s, not on a fixed beat - randomizing
-  // the gap keeps it from reading as a metronome.
   const gap = 2200 + Math.random() * 4200;
   blinkTimer = setTimeout(() => {
     if (store.mascotMood !== "sleeping") {
       closeEyes(90 + Math.random() * 60);
-      // Real eyes occasionally throw in a quick second blink right after the first.
       if (Math.random() < 0.15) {
         setTimeout(() => closeEyes(90), 220);
       }
@@ -40,6 +40,52 @@ onUnmounted(() => {
   if (blinkTimer) clearTimeout(blinkTimer);
   if (blinkCloseTimer) clearTimeout(blinkCloseTimer);
 });
+
+function onPointerMove(e: PointerEvent) {
+  if (store.mascotMood === "sleeping") return;
+  const stage = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const centerX = stage.left + stage.width / 2;
+  const centerY = stage.top + stage.height / 2;
+  const dx = (e.clientX - centerX) / (stage.width / 2);
+  const dy = (e.clientY - centerY) / (stage.height / 2);
+  eyeOffsetX.value = Math.max(-3.5, Math.min(3.5, dx * 3.5));
+  eyeOffsetY.value = Math.max(-3.5, Math.min(3.5, dy * 3.5));
+}
+
+function onPointerLeave() {
+  eyeOffsetX.value = 0;
+  eyeOffsetY.value = 0;
+}
+
+function onEarClick(_which: "left" | "right") {
+  vibrate(15);
+  if (store.soundFxEnabled) playBoing();
+  isWiggling.value = true;
+  store.triggerMascotReaction("surprised", 1500);
+  setTimeout(() => {
+    isWiggling.value = false;
+  }, 600);
+}
+
+function onTummyClick() {
+  vibrate([20, 30, 20]);
+  if (store.soundFxEnabled) playGiggle();
+  isWiggling.value = true;
+  showHearts.value = true;
+  store.triggerMascotReaction("happy", 2200);
+  setTimeout(() => {
+    isWiggling.value = false;
+  }, 600);
+  setTimeout(() => {
+    showHearts.value = false;
+  }, 1800);
+}
+
+function onBeakClick() {
+  vibrate(15);
+  if (store.soundFxEnabled) playChew();
+  store.triggerMascotReaction("eating", 1800);
+}
 
 function onFurbyClick() {
   vibrate(25);
@@ -82,7 +128,9 @@ function onFurbyClick() {
       ]"
       role="button"
       tabindex="0"
-      aria-label="Interactive Furby Mascot - Tap to tickle!"
+      aria-label="Interactive Furby Mascot - Tap ears, tummy, or beak!"
+      @pointermove="onPointerMove"
+      @pointerleave="onPointerLeave"
       @click="onFurbyClick"
       @keydown.enter="onFurbyClick"
       @keydown.space.prevent="onFurbyClick"
@@ -165,8 +213,13 @@ function onFurbyClick() {
           </filter>
         </defs>
 
-        <!-- Ears -->
-        <g class="ear left-ear">
+        <!-- Ears (Interactive touch zones) -->
+        <g
+          class="ear left-ear touch-zone"
+          role="button"
+          aria-label="Left ear - tap to wiggle"
+          @click.stop="onEarClick('left')"
+        >
           <ellipse
             cx="44"
             cy="56"
@@ -184,7 +237,12 @@ function onFurbyClick() {
             transform="rotate(-30 44 56)"
           />
         </g>
-        <g class="ear right-ear">
+        <g
+          class="ear right-ear touch-zone"
+          role="button"
+          aria-label="Right ear - tap to wiggle"
+          @click.stop="onEarClick('right')"
+        >
           <ellipse
             cx="156"
             cy="56"
@@ -212,7 +270,7 @@ function onFurbyClick() {
           filter="url(#furGlow)"
         />
 
-        <!-- Tummy Patch -->
+        <!-- Tummy Patch (Interactive touch zone) -->
         <ellipse
           cx="100"
           cy="138"
@@ -220,6 +278,10 @@ function onFurbyClick() {
           ry="38"
           fill="url(#bellyGrad)"
           opacity="0.9"
+          class="tummy-patch touch-zone"
+          role="button"
+          aria-label="Tummy - tap to tickle"
+          @click.stop="onTummyClick"
         />
 
         <!-- Feet -->
@@ -261,6 +323,7 @@ function onFurbyClick() {
               store.mascotMood !== 'sleeping' && store.mascotMood !== 'happy'
             "
             class="normal-pupils"
+            :style="{ transform: `translate(${eyeOffsetX}px, ${eyeOffsetY}px)` }"
           >
             <!-- Left Pupil -->
             <ellipse
@@ -403,8 +466,13 @@ function onFurbyClick() {
           />
         </g>
 
-        <!-- BEAK -->
-        <g class="beak-group">
+        <!-- BEAK (Interactive touch zone) -->
+        <g
+          class="beak-group touch-zone"
+          role="button"
+          aria-label="Beak - tap to feed"
+          @click.stop="onBeakClick"
+        >
           <!-- Open mouth interior when talking/eating/singing -->
           <ellipse
             v-if="
@@ -464,7 +532,7 @@ function onFurbyClick() {
           >Chit chat chat! 💬</span
         >
         <span v-else-if="store.mascotMood === 'sleeping'">Zzzz... 😴</span>
-        <span v-else>Tap to tickle me! 👋</span>
+        <span v-else>Tap ears, tummy, or beak! ✨</span>
       </div>
     </div>
   </div>
@@ -492,6 +560,32 @@ function onFurbyClick() {
 
 .furby-stage:hover {
   transform: scale(1.04);
+}
+
+.normal-pupils {
+  transition: transform 0.08s ease-out;
+}
+
+.touch-zone {
+  cursor: pointer;
+  pointer-events: all;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.touch-zone:hover {
+  filter: brightness(1.15);
+}
+
+.tummy-patch:hover {
+  filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.7));
+}
+
+.ear.touch-zone:hover {
+  filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.7));
+}
+
+.beak-group.touch-zone:hover {
+  filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.7));
 }
 
 /* Soft aura while Furby is in listening mode - the only mascot-level cue for it */

@@ -279,6 +279,37 @@ const discoveryPercent = computed(() =>
   Math.round((discoveredCount.value / TOTAL_DISCOVERABLE) * 100),
 );
 
+const collectionRank = computed(() => {
+  const count = discoveredCount.value;
+  if (count >= TOTAL_DISCOVERABLE)
+    return { title: "Grand Furby Whisperer!", emoji: "👑" };
+  if (count >= 18) return { title: "Magic Maestro", emoji: "🔮" };
+  if (count >= 12) return { title: "Furby DJ", emoji: "🎩" };
+  if (count >= 6) return { title: "Sound Explorer", emoji: "🌟" };
+  return { title: "Curious Furbling", emoji: "🐣" };
+});
+
+interface ParticleBurst {
+  id: number;
+  x: number;
+  y: number;
+  emoji: string;
+}
+const bursts = ref<ParticleBurst[]>([]);
+let burstCounter = 0;
+
+function spawnBurst(e: MouseEvent | undefined, emoji: string) {
+  if (!e || !e.clientX) return;
+  const id = burstCounter++;
+  bursts.value.push({ id, x: e.clientX, y: e.clientY, emoji });
+  setTimeout(() => {
+    bursts.value = bursts.value.filter((b) => b.id !== id);
+  }, 750);
+}
+
+const highlightedCardId = ref<number | null>(null);
+let highlightTimer: ReturnType<typeof setTimeout> | null = null;
+
 const justDiscovered = ref(false);
 let discoveryToastTimer: ReturnType<typeof setTimeout> | null = null;
 watch(discoveredCount, (next, prev) => {
@@ -314,14 +345,15 @@ function playKidSound(sound?: string) {
   }
 }
 
-function handleItemClick(item: KidItem) {
+function handleItemClick(item: KidItem, event?: MouseEvent) {
   vibrate(15);
+  if (event) spawnBurst(event, item.icon);
   playKidSound(item.sound);
   if (store.readAloudEnabled) speak(item.title);
   store.send(item.id);
 }
 
-function handleSurprise() {
+function handleSurprise(e?: MouseEvent) {
   vibrate([10, 40, 10]);
   const undiscovered = ALL_ITEMS.filter(
     (item) => !discoveredIds.value.has(item.id),
@@ -329,7 +361,12 @@ function handleSurprise() {
   const pool = undiscovered.length > 0 ? undiscovered : ALL_ITEMS;
   const item = pool[Math.floor(Math.random() * pool.length)];
   activeTab.value = ITEM_TAB[item.id];
-  handleItemClick(item);
+  highlightedCardId.value = item.id;
+  if (highlightTimer) clearTimeout(highlightTimer);
+  highlightTimer = setTimeout(() => {
+    highlightedCardId.value = null;
+  }, 2200);
+  handleItemClick(item, e);
 }
 
 function handleSleepToggle() {
@@ -442,6 +479,18 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 <template>
   <div class="kids-view">
+    <!-- Floating emoji bursts from card taps -->
+    <div class="burst-container" aria-hidden="true">
+      <span
+        v-for="b in bursts"
+        :key="b.id"
+        class="floating-burst"
+        :style="{ left: b.x + 'px', top: b.y + 'px' }"
+      >
+        {{ b.emoji }}
+      </span>
+    </div>
+
     <!-- First-Visit Onboarding -->
     <div v-if="!onboardingDismissed" class="kids-onboarding">
       <span class="onboarding-emoji" aria-hidden="true">👋</span>
@@ -536,6 +585,12 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         </button>
       </div>
 
+      <!-- Friendly proximity & volume guide for high ultrasonic reliability -->
+      <div class="audio-guide-pill" role="status">
+        <span class="guide-icon" aria-hidden="true">🔊</span>
+        <span>Keep speaker near Furby's tummy • Volume ~80%</span>
+      </div>
+
       <p v-if="store.micError" class="kids-error">
         ⚠️ Microphone note: {{ store.micError }}
       </p>
@@ -560,8 +615,11 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
     <div class="discovery-panel">
       <div class="discovery-info">
         <div class="discovery-header">
-          <span aria-hidden="true">🌟</span>
-          <span>Sound Collection</span>
+          <div class="discovery-title-group">
+            <span aria-hidden="true">🌟</span>
+            <span>Sound Collection</span>
+          </div>
+          <span class="rank-badge">{{ collectionRank.emoji }} {{ collectionRank.title }}</span>
         </div>
         <div class="discovery-bar-track">
           <div
@@ -583,7 +641,7 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
         type="button"
         class="surprise-btn"
         :disabled="store.sending !== null"
-        @click="handleSurprise"
+        @click="handleSurprise($event)"
       >
         <span class="surprise-icon" aria-hidden="true">🎲</span>
         <span>Surprise Me!</span>
@@ -662,11 +720,21 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           v-for="item in TRICK_ITEMS"
           :key="item.id"
           class="play-card trick-card"
-          :class="{ busy: store.sending === item.id }"
+          :class="{
+            busy: store.sending === item.id,
+            highlighted: highlightedCardId === item.id,
+            discovered: discoveredIds.has(item.id),
+          }"
           :disabled="store.sending !== null"
           :style="{ '--card-color': item.color }"
-          @click="handleItemClick(item)"
+          @click="handleItemClick(item, $event)"
         >
+          <span
+            class="card-badge"
+            :class="{ found: discoveredIds.has(item.id) }"
+          >
+            {{ discoveredIds.has(item.id) ? "⭐ Found" : "✨ New" }}
+          </span>
           <span class="card-emoji">{{ item.icon }}</span>
           <span class="card-title">{{ item.title }}</span>
           <span class="card-subtitle">{{ item.subtitle }}</span>
@@ -687,11 +755,21 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           v-for="item in FOOD_ITEMS"
           :key="item.id"
           class="play-card food-card"
-          :class="{ busy: store.sending === item.id }"
+          :class="{
+            busy: store.sending === item.id,
+            highlighted: highlightedCardId === item.id,
+            discovered: discoveredIds.has(item.id),
+          }"
           :disabled="store.sending !== null"
           :style="{ '--card-color': item.color }"
-          @click="handleItemClick(item)"
+          @click="handleItemClick(item, $event)"
         >
+          <span
+            class="card-badge"
+            :class="{ found: discoveredIds.has(item.id) }"
+          >
+            {{ discoveredIds.has(item.id) ? "⭐ Found" : "✨ New" }}
+          </span>
           <span class="card-emoji">{{ item.icon }}</span>
           <span class="card-title">{{ item.title }}</span>
           <span class="card-subtitle">{{ item.subtitle }}</span>
@@ -712,11 +790,21 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
           v-for="item in MUSIC_ITEMS"
           :key="item.id"
           class="play-card music-card"
-          :class="{ busy: store.sending === item.id }"
+          :class="{
+            busy: store.sending === item.id,
+            highlighted: highlightedCardId === item.id,
+            discovered: discoveredIds.has(item.id),
+          }"
           :disabled="store.sending !== null"
           :style="{ '--card-color': item.color }"
-          @click="handleItemClick(item)"
+          @click="handleItemClick(item, $event)"
         >
+          <span
+            class="card-badge"
+            :class="{ found: discoveredIds.has(item.id) }"
+          >
+            {{ discoveredIds.has(item.id) ? "⭐ Found" : "✨ New" }}
+          </span>
           <span class="card-emoji">{{ item.icon }}</span>
           <span class="card-title">{{ item.title }}</span>
           <span class="card-subtitle">{{ item.subtitle }}</span>
@@ -764,6 +852,14 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
             <div class="badge-info">
               <h4 class="badge-title">{{ personalityBadge.title }}</h4>
               <p class="badge-desc">{{ personalityBadge.desc }}</p>
+              <button
+                type="button"
+                class="read-again-btn"
+                aria-label="Read Furby personality out loud"
+                @click="speak(`Furby is a ${personalityBadge.title}! ${personalityBadge.desc}`)"
+              >
+                🗣️ Hear Furby Speak
+              </button>
             </div>
           </div>
         </div>
@@ -795,6 +891,39 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   flex-direction: column;
   gap: 1.2rem;
   padding-bottom: 2rem;
+}
+
+/* Floating Burst Particles */
+.burst-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.floating-burst {
+  position: absolute;
+  font-size: 2.2rem;
+  pointer-events: none;
+  animation: floatUpAndFade 0.75s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  transform: translate(-50%, -50%);
+  user-select: none;
+}
+
+@keyframes floatUpAndFade {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(0.6) rotate(0deg);
+  }
+  50% {
+    transform: translate(-50%, -80px) scale(1.3) rotate(12deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -130px) scale(1.1) rotate(-8deg);
+    opacity: 0;
+  }
 }
 
 /* First-Visit Onboarding */
@@ -954,6 +1083,27 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   font-size: 1.1rem;
 }
 
+/* Friendly audio proximity guide */
+.audio-guide-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 12px;
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.25);
+  color: #22d3ee;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.guide-icon {
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
 .kids-error {
   margin: 0;
   font-size: 0.82rem;
@@ -1056,11 +1206,36 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 .discovery-header {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.discovery-title-group {
+  display: flex;
+  align-items: center;
   gap: 0.4rem;
   font-size: 0.85rem;
   font-weight: 800;
   color: var(--text);
-  margin-bottom: 0.4rem;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    135deg,
+    rgba(245, 158, 11, 0.2),
+    rgba(236, 72, 153, 0.2)
+  );
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #fbbf24;
 }
 
 .discovery-bar-track {
@@ -1239,6 +1414,48 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
 
 .play-card:active {
   transform: scale(0.94);
+}
+
+.card-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+
+.card-badge.found {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.play-card.busy .card-badge {
+  display: none;
+}
+
+.play-card.highlighted {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5), 0 8px 24px rgba(245, 158, 11, 0.35);
+  animation: surpriseGlow 1.1s ease-in-out infinite alternate;
+}
+
+@keyframes surpriseGlow {
+  0% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.4), 0 6px 18px rgba(245, 158, 11, 0.25);
+  }
+  100% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.8), 0 10px 28px rgba(245, 158, 11, 0.5);
+  }
 }
 
 .play-card.busy {
@@ -1448,6 +1665,31 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   font-size: 0.88rem;
   color: var(--text);
   line-height: 1.4;
+}
+
+.read-again-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid var(--badge-color);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.read-again-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: scale(1.03);
+}
+
+.read-again-btn:active {
+  transform: scale(0.97);
 }
 
 .personality-empty {
