@@ -74,6 +74,25 @@ body {
   min-height: 100dvh;
 }
 
+@media (max-width: 767px) {
+  /* On phone-width viewports the Kids Playroom is a fixed single-screen "app
+     shell" - it sizes itself to fit here with no page scroll. Pro Console is
+     content-heavy enough (command grids, a 350+ entry phrasebook) that it
+     still scrolls, but now within #main-content below rather than the whole
+     page, so the header and mode switcher stay put while it does. Desktop
+     keeps the natural, taller-than-one-screen page above - there's no need
+     to cram it into one viewport when scrolling a wide window costs nothing. */
+  #app {
+    padding: max(0.6rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+      max(0.5rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+}
+
 button,
 [role="button"],
 [role="tab"] {

@@ -41,17 +41,22 @@ onMounted(() => {
         <h1>
           {{ store.uiMode === "kids" ? "Furby's Playroom" : "Furby Console" }}
         </h1>
-        <p class="subtitle">
-          {{
-            store.uiMode === "kids"
-              ? "Magic sound remote for your Furby toy!"
-              : "Acoustic ComAir remote for 2012 / Furby Boom toys. Point speaker at Furby's chest, volume ~80%."
-          }}
+        <!-- Kids mode shows the same awake/mic status as chips right on the
+             stage below, so this line + the badges to the right would just
+             be a second, redundant readout eating vertical space. -->
+        <p v-if="store.uiMode !== 'kids'" class="subtitle">
+          Acoustic ComAir remote for 2012 / Furby Boom toys. Point speaker at
+          Furby's chest, volume ~80%.
         </p>
       </div>
 
       <!-- Quick Status Badges -->
-      <div class="header-status-pills" role="status" aria-live="polite">
+      <div
+        v-if="store.uiMode !== 'kids'"
+        class="header-status-pills"
+        role="status"
+        aria-live="polite"
+      >
         <span
           class="status-badge"
           :class="{ active: store.keepAliveActive }"
@@ -151,7 +156,7 @@ onMounted(() => {
     </Transition>
   </main>
 
-  <footer>
+  <footer v-if="store.uiMode !== 'kids'">
     Protocol reverse-engineered by the
     <a href="https://github.com/iafan/Hacksby" target="_blank" rel="noreferrer"
       >Hacksby</a
@@ -168,6 +173,23 @@ header {
   flex-direction: column;
   gap: 0.9rem;
   margin-bottom: 1.2rem;
+}
+
+@media (max-width: 767px) {
+  header {
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  main {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 .header-main {
   display: flex;
@@ -216,6 +238,13 @@ header {
 h1 {
   margin: 0 0 0.3rem;
   font-size: 1.4rem;
+}
+
+@media (max-width: 767px) {
+  h1 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
 }
 .subtitle {
   margin: 0;
@@ -277,6 +306,17 @@ h1 {
   font-size: 1.15rem;
 }
 
+@media (max-width: 767px) {
+  .mode-bar {
+    padding: 0.3rem;
+    flex-shrink: 0;
+  }
+
+  .mode-tab {
+    padding: 0.5rem 0.8rem;
+  }
+}
+
 .power-row {
   display: flex;
   gap: 0.6rem;
@@ -307,6 +347,12 @@ footer {
   border-top: 1px solid var(--border);
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+@media (max-width: 767px) {
+  footer {
+    flex-shrink: 0;
+  }
 }
 footer a {
   color: var(--accent);

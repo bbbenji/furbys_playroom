@@ -52,6 +52,15 @@ const emit = defineEmits<{
   gap: 0.85rem;
 }
 
+@media (max-width: 767px) {
+  .grid-cards {
+    /* 3 columns keeps the grid short (fewer rows) so it's more likely to fit
+       a whole tab's worth of cards in one phone screen without scrolling. */
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+}
+
 @media (min-width: 520px) {
   .grid-cards {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -190,6 +199,51 @@ const emit = defineEmits<{
 
 .play-card.busy:disabled {
   opacity: 1;
+}
+
+@media (max-width: 767px) {
+  .play-card {
+    padding: 0.6rem 0.35rem 0.5rem;
+    border-radius: 18px;
+  }
+
+  .card-badge {
+    top: 5px;
+    right: 5px;
+    font-size: 0.56rem;
+    padding: 0.1rem 0.35rem;
+  }
+
+  .card-emoji {
+    font-size: 1.6rem;
+    margin-bottom: 0.15rem;
+  }
+
+  .card-title {
+    font-size: 0.74rem;
+    margin-bottom: 0.1rem;
+    line-height: 1.15;
+  }
+
+  .card-subtitle {
+    font-size: 0.62rem;
+    line-height: 1.15;
+  }
+}
+
+@media (max-width: 767px) and (max-height: 700px) {
+  .grid-cards {
+    gap: 0.35rem;
+  }
+
+  .play-card {
+    padding: 0.4rem 0.3rem 0.35rem;
+  }
+
+  .card-emoji {
+    font-size: 1.3rem;
+    margin-bottom: 0.1rem;
+  }
 }
 
 @media (prefers-color-scheme: light) {

@@ -645,6 +645,24 @@ function onFurbyClick() {
   overflow: visible;
 }
 
+@media (max-width: 767px) {
+  .furby-svg {
+    /* Tied to viewport height (not a fixed px size) so the mascot shrinks on
+       short phone screens instead of pushing the rest of the shell - which
+       is built to fit in one screen with no page scroll - off-screen. Only
+       applies at phone widths; desktop keeps the fixed 170px original. */
+    width: clamp(72px, 20vh, 170px);
+    height: clamp(72px, 20vh, 170px);
+  }
+}
+
+@media (max-width: 767px) and (max-height: 700px) {
+  .furby-svg {
+    width: clamp(72px, 15vh, 170px);
+    height: clamp(72px, 15vh, 170px);
+  }
+}
+
 /* Ears animations */
 .left-ear {
   transform-origin: 50px 70px;
@@ -899,6 +917,20 @@ function onFurbyClick() {
   height: 170px;
 }
 
+@media (max-width: 767px) {
+  .soundwaves {
+    width: clamp(72px, 20vh, 170px);
+    height: clamp(72px, 20vh, 170px);
+  }
+}
+
+@media (max-width: 767px) and (max-height: 700px) {
+  .soundwaves {
+    width: clamp(72px, 15vh, 170px);
+    height: clamp(72px, 15vh, 170px);
+  }
+}
+
 .wave {
   position: absolute;
   top: 0;
@@ -1111,6 +1143,15 @@ function onFurbyClick() {
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+@media (max-width: 767px) {
+  .tap-hint {
+    margin-top: 0.3rem;
+    margin-bottom: 0;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.76rem;
+  }
 }
 
 @media (prefers-color-scheme: light) {

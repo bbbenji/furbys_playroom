@@ -627,14 +627,6 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
       <!-- Centerpiece Interactive Furby Mascot -->
       <div class="stage-mascot-arena">
         <KidFurbyMascot />
-
-        <!-- In-situ Radiant Beaming Sonic Rings (dialogue bubble inside mascot handles status) -->
-        <Transition name="beam-pop">
-          <div v-if="store.sending !== null" class="stage-beaming-pulse" role="status">
-            <span class="beaming-sonic-ring ring-1"></span>
-            <span class="beaming-sonic-ring ring-2"></span>
-          </div>
-        </Transition>
       </div>
 
       <!-- Stage Bottom Audio Proximity Guide -->
@@ -861,6 +853,15 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   padding-bottom: 2rem;
 }
 
+@media (max-width: 767px) {
+  .kids-view {
+    gap: 0.5rem;
+    flex: 1;
+    min-height: 0;
+    padding-bottom: 0;
+  }
+}
+
 /* Floating Burst Particles */
 .burst-container {
   position: fixed;
@@ -1044,55 +1045,6 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   width: 100%;
   margin: 0;
   padding: 0.1rem 0;
-}
-
-/* In-situ Beaming Pulse */
-.stage-beaming-pulse {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1;
-  pointer-events: none;
-}
-
-
-.beaming-sonic-ring {
-  position: absolute;
-  width: 140px;
-  height: 60px;
-  border-radius: 50%;
-  border: 2px solid rgba(236, 72, 153, 0.6);
-  animation: sonicRings 1.2s infinite ease-out;
-}
-
-.beaming-sonic-ring.ring-2 {
-  animation-delay: 0.6s;
-}
-
-@keyframes sonicRings {
-  0% {
-    transform: scale(0.5);
-    opacity: 0.9;
-  }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
-  }
-}
-
-.beam-pop-enter-active,
-.beam-pop-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.beam-pop-enter-from,
-.beam-pop-leave-to {
-  opacity: 0;
-  transform: scale(0.85);
 }
 
 /* Stage Bottom Guide */
@@ -1315,6 +1267,19 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   flex-direction: column;
 }
 
+@media (max-width: 767px) {
+  /* The one part of the shell allowed to scroll internally, as a fallback
+     for whichever tab/viewport combo doesn't quite fit; everything above it
+     (stage, capsule bar, tabs) stays fixed. Desktop has room to spare so it
+     just uses the page's natural scroll instead. */
+  .play-grid-section {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
 /* Mood & Personality Section */
 .mood-box {
   display: flex;
@@ -1521,6 +1486,136 @@ function getPersonalityBadge(id: number, label: string): PersonalityBadge {
   margin: 0;
   font-size: 0.86rem;
   line-height: 1.4;
+}
+
+/* Phone-width shell: this is the fixed single-screen layout (see #app and
+   .kids-view above) - everything here trims padding/gaps so the whole
+   playroom fits in one viewport with no page scroll. Desktop keeps the
+   original, more spacious sizing set above since it has a whole scrollable
+   page to work with and doesn't need to fit one screen. */
+@media (max-width: 767px) {
+  .playroom-stage {
+    gap: 0.2rem;
+    padding: 0.5rem 0.7rem 0.4rem;
+    flex-shrink: 0;
+  }
+
+  .stage-chip {
+    gap: 0.3rem;
+    padding: 0.24rem 0.55rem;
+    font-size: 0.72rem;
+  }
+
+  .tool-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 0.82rem;
+  }
+
+  .stage-footer-guide {
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+    padding: 0.15rem 0.7rem;
+    font-size: 0.66rem;
+  }
+
+  .discovery-capsule-bar {
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .discovery-capsule {
+    padding: 0.4rem 0.75rem;
+  }
+
+  .capsule-surprise-btn {
+    padding: 0.5rem 0.8rem;
+  }
+
+  .category-tabs {
+    gap: 0.3rem;
+    padding: 0.3rem;
+    flex-shrink: 0;
+  }
+
+  .tab-btn {
+    gap: 0.1rem;
+    padding: 0.4rem 0.2rem;
+    min-height: 44px;
+  }
+
+  .tab-emoji {
+    font-size: 1.2rem;
+  }
+
+  .tab-label {
+    font-size: 0.7rem;
+  }
+
+  .mood-box {
+    gap: 0.5rem;
+  }
+
+  .mood-header {
+    padding: 0.8rem 1rem;
+  }
+
+  .mood-header h3 {
+    margin: 0 0 0.2rem;
+    font-size: 1.05rem;
+  }
+
+  .mood-header p {
+    margin: 0 0 0.55rem;
+    font-size: 0.8rem;
+  }
+
+  .ask-mood-btn {
+    padding: 0.55rem 1.2rem;
+  }
+
+  .personality-empty {
+    padding: 0.8rem 1rem;
+    gap: 0.3rem;
+  }
+
+  .empty-icon {
+    font-size: 1.6rem;
+  }
+}
+
+/* On the shortest phone screens (iPhone SE and similar), squeeze out the
+   remaining non-essential chrome so as much of the active tab's card grid
+   as possible fits without needing its own internal scroll. */
+@media (max-width: 767px) and (max-height: 700px) {
+  .stage-footer-guide {
+    display: none;
+  }
+
+  .playroom-stage {
+    padding: 0.4rem 0.6rem 0.3rem;
+  }
+
+  .discovery-capsule {
+    padding: 0.3rem 0.6rem;
+  }
+
+  .tab-btn {
+    padding: 0.3rem 0.2rem;
+    min-height: 38px;
+  }
+
+  .mood-header {
+    padding: 0.5rem 0.8rem;
+  }
+
+  .mood-header p {
+    margin-bottom: 0.35rem;
+  }
+
+  .personality-empty {
+    padding: 0.5rem 0.8rem;
+  }
 }
 
 @media (prefers-color-scheme: light) {
