@@ -58,6 +58,10 @@ function onThresholdInput(e: Event) {
 function resetThreshold() {
   store.setRxThreshold(DEFAULT_RX_THRESHOLD);
 }
+
+function formatTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString();
+}
 </script>
 
 <template>
@@ -153,6 +157,49 @@ function resetThreshold() {
         A tone only counts as "heard" once its bar clears the red line.
         Too low: ambient room noise causes false packets. Too high: real Furby tones get missed.
       </p>
+    </div>
+
+    <div v-if="store.micActive" class="decode-debug">
+      <div class="raw-buffer">
+        <span class="raw-buffer-label">Live symbol buffer</span>
+        <code class="raw-buffer-value">{{ store.rxRawBuffer || "(nothing heard yet)" }}</code>
+        <p class="raw-buffer-hint">
+          Every tone the decoder has accepted, most recent last. A real
+          response looks like an X-delimited run of 12 digits
+          (<code>X&lt;d&gt;X&lt;d&gt;X…X</code>) repeated twice, ~0.5s apart.
+          If this buffer isn't showing that pattern, the mic isn't reliably
+          hearing Furby's tones yet - try moving it closer or adjusting the
+          threshold above.
+        </p>
+      </div>
+
+      <div class="decode-log">
+        <div class="decode-log-header">
+          <span class="raw-buffer-label">Decode attempts that failed</span>
+          <button
+            v-if="store.rxDebugLog.length > 0"
+            type="button"
+            class="reset-btn"
+            @click="store.clearRxDebugLog"
+          >
+            Clear
+          </button>
+        </div>
+        <p v-if="store.rxDebugLog.length === 0" class="decode-log-empty">
+          None yet. Once a full 12-digit candidate packet or a stray half-packet
+          is heard but can't be turned into a command, it'll show up here with
+          the reason.
+        </p>
+        <ul v-else class="decode-log-list">
+          <li v-for="entry in store.rxDebugLog" :key="entry.id">
+            <span class="decode-log-kind" :class="entry.kind">{{
+              entry.kind === "checksum-fail" ? "Bad checksum" : "Orphan half"
+            }}</span>
+            <span class="decode-log-detail">{{ entry.detail }}</span>
+            <span class="decode-log-time">{{ formatTime(entry.at) }}</span>
+          </li>
+        </ul>
+      </div>
     </div>
   </section>
 </template>
@@ -346,5 +393,103 @@ h2 {
   margin: 0.5rem 0 0;
   font-size: 0.78rem;
   color: var(--muted);
+}
+.decode-debug {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+.raw-buffer,
+.decode-log {
+  padding: 0.7rem 0.8rem;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+.raw-buffer-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+.raw-buffer-value {
+  display: block;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  word-break: break-all;
+  color: var(--text);
+}
+.raw-buffer-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.decode-log-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+.decode-log-empty {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.decode-log-list {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 160px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.decode-log-list li {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 6px;
+  background: var(--bg);
+  border-left: 3px solid var(--border);
+  font-size: 0.78rem;
+}
+.decode-log-kind {
+  flex-shrink: 0;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+.decode-log-kind.checksum-fail {
+  background: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+}
+.decode-log-kind.orphan-half {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+.decode-log-detail {
+  flex: 1;
+  min-width: 0;
+  color: var(--text);
+  word-break: break-word;
+}
+.decode-log-time {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 </style>

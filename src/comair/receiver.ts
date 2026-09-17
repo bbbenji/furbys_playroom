@@ -20,6 +20,18 @@ export type SymbolMsg = {
 };
 
 /**
+ * Surfaces the decode pipeline's intermediate state so a debug UI can show
+ * *why* a heard tone never became a mood, instead of it failing silently:
+ * - "buffer": the live collapsed-symbol string (updates on every accepted symbol)
+ * - "checksum-fail": a full 12-digit X-framed candidate was found but its checksum didn't match
+ * - "orphan-half": a half-packet was heard but never paired with a matching other half in time
+ */
+export type RxDebugEvent =
+  | { kind: "buffer"; buffer: string; at: number }
+  | { kind: "checksum-fail"; digits: string; at: number }
+  | { kind: "orphan-half"; value: number; at: number };
+
+/**
  * Best-effort live decoder for Furby's acoustic responses. This is the
  * inverse of the TX path: it classifies incoming audio into the 5 ComAir
  * tones via a Goertzel filter (see public/goertzel-processor.js), collapses
@@ -45,6 +57,7 @@ export class ComAirReceiver {
   private packetHandlers: Array<(p: ReceivedPacket) => void> = [];
   private commandHandlers: Array<(c: ReceivedCommand) => void> = [];
   private symbolHandlers: Array<(m: SymbolMsg) => void> = [];
+  private debugHandlers: Array<(e: RxDebugEvent) => void> = [];
 
   constructor(magnitudeThreshold = 0.01) {
     this.magnitudeThreshold = magnitudeThreshold;
@@ -61,6 +74,15 @@ export class ComAirReceiver {
   /** Raw per-window magnitudes for every tone, before thresholding - for a live signal-strength debug view. */
   onSymbol(handler: (m: SymbolMsg) => void): void {
     this.symbolHandlers.push(handler);
+  }
+
+  /** Intermediate decode-pipeline state (see RxDebugEvent) - for a debug view of *why* a heard tone isn't becoming a mood. */
+  onDebug(handler: (e: RxDebugEvent) => void): void {
+    this.debugHandlers.push(handler);
+  }
+
+  private emitDebug(event: RxDebugEvent): void {
+    this.debugHandlers.forEach((h) => h(event));
   }
 
   async start(): Promise<void> {
@@ -142,6 +164,7 @@ export class ComAirReceiver {
 
     this.collapsed.push(symbol);
     if (this.collapsed.length > 64) this.collapsed = this.collapsed.slice(-64);
+    this.emitDebug({ kind: "buffer", buffer: this.collapsed.join(""), at: Date.now() });
 
     this.tryDecode();
   }
@@ -161,13 +184,15 @@ export class ComAirReceiver {
       }
 
       if (digits.length === 12) {
-        const value = parsePacket(digits.join(""));
+        const raw = digits.join("");
+        const value = parsePacket(raw);
         if (value >= 0) {
           this.collapsed = buf.slice(i);
           this.emitPacket(value);
           return;
         }
-        // If checksum failed, do not return early - continue searching for the next candidate packet
+        // Checksum failed - surface it for debugging, then keep searching for the next candidate packet
+        this.emitDebug({ kind: "checksum-fail", digits: raw, at: Date.now() });
       }
     }
   }
@@ -178,6 +203,15 @@ export class ComAirReceiver {
     this.packetHandlers.forEach((h) => h(packet));
 
     if (isHighHalf) {
+      if (this.lastEmittedHigh) {
+        // A new high half arrived before the previous one was ever paired -
+        // that earlier half is now unrecoverable.
+        this.emitDebug({
+          kind: "orphan-half",
+          value: this.lastEmittedHigh.value,
+          at: packet.at,
+        });
+      }
       this.lastEmittedHigh = packet;
       return;
     }
@@ -185,6 +219,10 @@ export class ComAirReceiver {
     if (this.lastEmittedHigh && packet.at - this.lastEmittedHigh.at < 2000) {
       const command = combinePacketValues(this.lastEmittedHigh.value, value);
       this.commandHandlers.forEach((h) => h({ command, at: packet.at }));
+      this.lastEmittedHigh = null;
+    } else {
+      // A low half arrived with no valid high half in the pairing window (or none at all).
+      this.emitDebug({ kind: "orphan-half", value, at: packet.at });
       this.lastEmittedHigh = null;
     }
   }

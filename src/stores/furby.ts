@@ -1,6 +1,10 @@
 import { defineStore } from "pinia";
 import { describeCommand, isPersonalityResponse } from "../comair/commands";
-import { ComAirReceiver, friendlyReceiverError } from "../comair/receiver";
+import {
+  ComAirReceiver,
+  friendlyReceiverError,
+  type RxDebugEvent,
+} from "../comair/receiver";
 import { ComAirTransmitter } from "../comair/transmitter";
 
 export interface LogEntry {
@@ -17,10 +21,19 @@ export interface PersonalitySighting {
   at: number;
 }
 
+export interface RxDebugLogEntry {
+  id: number;
+  kind: "checksum-fail" | "orphan-half";
+  detail: string;
+  at: number;
+}
+
 const LOG_STORAGE_KEY = "furby-console:log:v1";
 const LOG_LIMIT = 200;
 const PERSONALITY_STORAGE_KEY = "furby-console:personality:v1";
 const PERSONALITY_LIMIT = 50;
+/** Not persisted - this is live decode-pipeline noise, only useful while the mic is running. */
+const RX_DEBUG_LOG_LIMIT = 20;
 
 function loadJson<T>(key: string, fallback: T): T {
   try {
@@ -69,6 +82,7 @@ const initialLog = isDemoMode
   : loadJson<LogEntry[]>(LOG_STORAGE_KEY, []);
 let nextLogId =
   initialLog.reduce((max, entry) => Math.max(max, entry.id), 0) + 1;
+let nextRxDebugId = 1;
 
 const initialPersonalityHistory = isDemoMode
   ? demoPersonalityHistory
@@ -158,6 +172,19 @@ export const useFurbyStore = defineStore("furby", {
       : {}) as Record<string, number>,
     /** Whichever tone was strongest in the most recent mic window (regardless of threshold). */
     rxSymbol: (isDemoMode ? "X" : null) as string | null,
+    /** Live tail of accepted symbols the decoder is trying to frame into a packet, for the RX debug view. */
+    rxRawBuffer: (isDemoMode ? "X1X0X3X2X1X0X3X2X1X0X3X" : "") as string,
+    /** Recent packets that were heard but failed to decode into a command (bad checksum or an unpaired half), newest first. */
+    rxDebugLog: (isDemoMode
+      ? [
+          {
+            id: 1,
+            kind: "checksum-fail",
+            detail: "Checksum failed for candidate packet 031201302103",
+            at: Date.now() - 8000,
+          },
+        ]
+      : []) as RxDebugLogEntry[],
   }),
 
   getters: {
@@ -202,6 +229,29 @@ export const useFurbyStore = defineStore("furby", {
     clearPersonalityHistory() {
       this.personalityHistory = [];
       persistJson(PERSONALITY_STORAGE_KEY, this.personalityHistory);
+    },
+
+    _recordRxDebug(event: RxDebugEvent) {
+      if (event.kind === "buffer") {
+        this.rxRawBuffer = event.buffer;
+        return;
+      }
+      const detail =
+        event.kind === "checksum-fail"
+          ? `Checksum failed for candidate packet ${event.digits}`
+          : `Heard a half-packet (value ${event.value}) with no matching other half in time`;
+      this.rxDebugLog.unshift({
+        id: nextRxDebugId++,
+        kind: event.kind,
+        detail,
+        at: event.at,
+      });
+      if (this.rxDebugLog.length > RX_DEBUG_LOG_LIMIT)
+        this.rxDebugLog.length = RX_DEBUG_LOG_LIMIT;
+    },
+
+    clearRxDebugLog() {
+      this.rxDebugLog = [];
     },
 
     setUiMode(mode: UiMode) {
@@ -382,10 +432,12 @@ export const useFurbyStore = defineStore("furby", {
           this.micActive = false;
           this.rxMagnitudes = {};
           this.rxSymbol = null;
+          this.rxRawBuffer = "";
           return;
         }
 
         this.micError = null;
+        this.rxDebugLog = [];
         try {
           const r = new ComAirReceiver(this.rxThreshold);
           r.onCommand(({ command }) => this._log("rx", command));
@@ -393,6 +445,7 @@ export const useFurbyStore = defineStore("furby", {
             this.rxSymbol = symbol;
             this.rxMagnitudes = magnitudes;
           });
+          r.onDebug((event) => this._recordRxDebug(event));
           await r.start();
           receiver = r;
           this.micActive = true;
