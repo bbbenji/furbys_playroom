@@ -54,6 +54,8 @@ export class ComAirReceiver {
 
   /** Live-adjustable (unlike the rest of the decoder state) so a debug UI can tune it while the mic is running. */
   magnitudeThreshold: number;
+  /** While true, heard tones are shown on the meters but never fed into decoding - set during our own outgoing playback so we can't mistake speaker bleed-through for a Furby response. */
+  private muted = false;
   private packetHandlers: Array<(p: ReceivedPacket) => void> = [];
   private commandHandlers: Array<(c: ReceivedCommand) => void> = [];
   private symbolHandlers: Array<(m: SymbolMsg) => void> = [];
@@ -83,6 +85,15 @@ export class ComAirReceiver {
 
   private emitDebug(event: RxDebugEvent): void {
     this.debugHandlers.forEach((h) => h(event));
+  }
+
+  setMuted(muted: boolean): void {
+    this.muted = muted;
+    if (muted) {
+      // Drop whatever's mid-frame so our own TX tail can't get stitched onto real signal once unmuted.
+      this.collapsed = [];
+      this.lastSymbol = null;
+    }
   }
 
   async start(): Promise<void> {
@@ -156,6 +167,7 @@ export class ComAirReceiver {
 
   handleSymbol(msg: SymbolMsg): void {
     this.symbolHandlers.forEach((h) => h(msg));
+    if (this.muted) return;
 
     const symbol = msg.magnitude >= this.magnitudeThreshold ? msg.symbol : null;
     if (symbol === this.lastSymbol) return;

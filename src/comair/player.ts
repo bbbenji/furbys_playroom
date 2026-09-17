@@ -33,6 +33,16 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 export class ComAirPlayer {
   private ctx: AudioContext | null = null;
   private queue: Promise<void> = Promise.resolve();
+  private playbackHandlers: Array<(playing: boolean) => void> = [];
+
+  /** Fires around the exact window audio is actually leaving the speaker - lets an RX path mute itself so it can't mistake our own outgoing transmission for a response. */
+  onPlaybackChange(handler: (playing: boolean) => void): void {
+    this.playbackHandlers.push(handler);
+  }
+
+  private setPlaying(playing: boolean): void {
+    this.playbackHandlers.forEach((h) => h(playing));
+  }
 
   private getContext(): AudioContext {
     if (!this.ctx) {
@@ -89,14 +99,19 @@ export class ComAirPlayer {
       source.buffer = buffer;
       source.connect(ctx.destination);
 
-      await withTimeout(
-        new Promise<void>((resolve) => {
-          source.onended = () => resolve();
-          source.start();
-        }),
-        PLAYBACK_TIMEOUT_MS,
-        "Playback got stuck - try tapping again",
-      );
+      this.setPlaying(true);
+      try {
+        await withTimeout(
+          new Promise<void>((resolve) => {
+            source.onended = () => resolve();
+            source.start();
+          }),
+          PLAYBACK_TIMEOUT_MS,
+          "Playback got stuck - try tapping again",
+        );
+      } finally {
+        this.setPlaying(false);
+      }
     } catch (err) {
       // The AudioContext may be wedged (e.g. a stalled resume() after a
       // WebKit audio session interruption) - drop it so the next send()

@@ -16,6 +16,11 @@ export class ComAirTransmitter {
     this.sentHandlers.push(handler)
   }
 
+  /** See ComAirPlayer.onPlaybackChange. */
+  onPlaybackChange(handler: (playing: boolean) => void): void {
+    this.player.onPlaybackChange(handler)
+  }
+
   /** Call synchronously from the first user tap to satisfy iOS/Safari's autoplay gate. */
   unlock(): void {
     this.player.unlock()

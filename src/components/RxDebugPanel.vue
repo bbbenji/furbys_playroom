@@ -89,6 +89,13 @@ function formatTime(ts: number): string {
     <div v-if="!store.micActive" class="idle-note">
       Mic is currently off. Tap <strong>Enable mic</strong> above or <strong>Test Mic</strong> to start monitoring.
     </div>
+    <div v-else-if="store.rxMuted" class="status-banner muted">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span>
+        🔇 Paused while sending - our own speaker output is muted from
+        decoding so it can't be mistaken for a Furby response.
+      </span>
+    </div>
     <div v-else class="status-banner" :class="{ hearing: hasActiveTone }">
       <span class="status-dot" aria-hidden="true"></span>
       <span v-if="hasActiveTone">
@@ -264,6 +271,11 @@ h2 {
 .status-banner.hearing {
   border-color: rgba(34, 197, 94, 0.4);
   background: rgba(34, 197, 94, 0.1);
+  color: var(--text);
+}
+.status-banner.muted {
+  border-color: rgba(148, 163, 184, 0.4);
+  background: rgba(148, 163, 184, 0.1);
   color: var(--text);
 }
 .status-dot {

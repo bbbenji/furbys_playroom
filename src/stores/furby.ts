@@ -93,6 +93,7 @@ const initialPersonalityHistory = isDemoMode
 
 const transmitter = new ComAirTransmitter();
 let receiver: ComAirReceiver | null = null;
+let playbackMuteWired = false;
 
 export type UiMode = "kids" | "console";
 export type MascotMood =
@@ -185,6 +186,8 @@ export const useFurbyStore = defineStore("furby", {
           },
         ]
       : []) as RxDebugLogEntry[],
+    /** True for the duration of our own outgoing playback - the receiver is muted then, so RX can't mistake speaker bleed-through for a Furby response. */
+    rxMuted: false,
   }),
 
   getters: {
@@ -433,6 +436,7 @@ export const useFurbyStore = defineStore("furby", {
           this.rxMagnitudes = {};
           this.rxSymbol = null;
           this.rxRawBuffer = "";
+          this.rxMuted = false;
           return;
         }
 
@@ -446,6 +450,13 @@ export const useFurbyStore = defineStore("furby", {
             this.rxMagnitudes = magnitudes;
           });
           r.onDebug((event) => this._recordRxDebug(event));
+          if (!playbackMuteWired) {
+            playbackMuteWired = true;
+            transmitter.onPlaybackChange((playing) => {
+              receiver?.setMuted(playing);
+              this.rxMuted = playing;
+            });
+          }
           await r.start();
           receiver = r;
           this.micActive = true;
