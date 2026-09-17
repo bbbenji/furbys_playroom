@@ -4,8 +4,12 @@ import { PHRASEBOOK } from "../comair/phrasebook";
 import { useFurbyStore } from "../stores/furby";
 
 const store = useFurbyStore();
-const query = ref("");
-const selectedTag = ref<string | null>(null);
+const urlParams =
+  typeof window !== "undefined" && typeof window.location !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+const query = ref(urlParams?.get("phrase") ?? "");
+const selectedTag = ref<string | null>(urlParams?.get("phraseTag") ?? null);
 const expanded = ref(false);
 
 const QUICK_TAGS = [
@@ -52,7 +56,7 @@ function toggleExpanded() {
 </script>
 
 <template>
-  <section class="phrasebook">
+  <section id="phrasebook" class="phrasebook">
     <div class="phrasebook-header">
       <h2>Furbish phrasebook</h2>
       <span class="count-badge">

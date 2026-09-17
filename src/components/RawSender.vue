@@ -21,7 +21,7 @@ function submit() {
 </script>
 
 <template>
-  <section class="raw-section">
+  <section id="raw-command" class="raw-section">
     <h2>Raw command</h2>
     <form class="raw-form" @submit.prevent="submit">
       <input

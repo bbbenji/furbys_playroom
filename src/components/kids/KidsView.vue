@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from "vue";
-import { useFurbyStore } from "../../stores/furby";
+import { isDemoMode, useFurbyStore } from "../../stores/furby";
 import { vibrate } from "./haptics";
 import KidFurbyMascot from "./KidFurbyMascot.vue";
 import KidItemGrid, { type KidItem } from "./KidItemGrid.vue";
@@ -16,8 +16,17 @@ import {
 
 const store = useFurbyStore();
 type TabKey = "food" | "tricks" | "music" | "mood";
-const activeTab = ref<TabKey>("tricks");
 const TAB_KEYS: TabKey[] = ["tricks", "food", "music", "mood"];
+
+const urlParams =
+  typeof window !== "undefined" && typeof window.location !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+const urlTab = urlParams?.get("tab") as TabKey | null;
+
+const activeTab = ref<TabKey>(
+  urlTab && TAB_KEYS.includes(urlTab) ? urlTab : "tricks",
+);
 
 function onTabKeydown(e: KeyboardEvent, currentTab: TabKey) {
   const idx = TAB_KEYS.indexOf(currentTab);
@@ -249,6 +258,9 @@ const ITEM_TAB: Record<number, TabKey> = Object.fromEntries([
 const DISCOVERED_STORAGE_KEY = "furby-console:discovered:v1";
 
 function loadDiscovered(): Set<number> {
+  if (isDemoMode) {
+    return new Set([865, 864, 863, 866, 350, 352, 353, 354, 721, 722, 723, 724]);
+  }
   try {
     const raw = localStorage.getItem(DISCOVERED_STORAGE_KEY);
     if (!raw) return new Set();

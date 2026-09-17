@@ -50,7 +50,7 @@ async function copyLog() {
 </script>
 
 <template>
-  <section class="log-section">
+  <section id="activity-log" class="log-section">
     <div class="log-header">
       <div class="title-group">
         <h2>Activity</h2>

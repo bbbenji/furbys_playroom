@@ -11,6 +11,10 @@
 
 **[Launch Live Demo](https://bbbenji.github.io/furbys_playroom/)**
 
+<p align="center">
+  <img src="docs/screenshots/kids-playroom.png" alt="Furby's Playroom Interface" width="100%" />
+</p>
+
 ---
 
 ## Table of Contents
@@ -69,6 +73,10 @@ The application provides two purpose-built modes toggled with a single tap in th
 
 Designed for young players and casual fun, featuring an original animated Furby character and tactile cards.
 
+<p align="center">
+  <img src="docs/screenshots/kids-feeding-pantry.png" alt="Kids Playroom - Feeding Pantry and Snack Cards" width="100%" />
+</p>
+
 - **Interactive Furby Mascot**:
   - **Smooth Eye Tracking**: Eyes follow your mouse cursor or finger on screen.
   - **Randomized Lifelike Blinking**: Organic intervals with natural double-blinking animations.
@@ -93,9 +101,19 @@ Designed for young players and casual fun, featuring an original animated Furby 
   - **Procedural Audio FX**: Web Audio synthesizer creating retro sound effects (boings, giggles, purrs, chimes) without external audio files.
   - **Surprise Me**: Shuffle button that triggers a random discoverable command.
 
+<p align="center">
+  <img src="docs/screenshots/kids-playroom-mobile.png" alt="Kids Playroom on Mobile" width="340" />
+  <br>
+  <em>Touch-friendly mobile interface with haptic feedback and collection progress tracking.</em>
+</p>
+
 ### Pro Console
 
 A comprehensive technical interface for reverse-engineers, enthusiasts, and debugging physical hardware.
+
+<p align="center">
+  <img src="docs/screenshots/pro-console.png" alt="Furby Pro Console - Spectrum Debug and Personality Tracker" width="100%" />
+</p>
 
 - **Categorized Command Grids**:
   - **Actions**: Sleep, laugh, burp, fart, purr, sneeze, dance, scream, and hiccup.
@@ -120,6 +138,10 @@ A comprehensive technical interface for reverse-engineers, enthusiasts, and debu
   - Timestamped stream of all sent (TX) and received (RX) packets.
   - Direction filters (All, TX only, RX only).
   - One-click copy to clipboard for test reports and debugging.
+
+| 352-Word Furbish Phrasebook | Raw 10-Bit Injector & Activity Stream |
+| :---: | :---: |
+| <img src="docs/screenshots/furbish-phrasebook.png" alt="Furbish Phrasebook" width="100%" /> | <img src="docs/screenshots/raw-injector-activity-log.png" alt="Raw Injector and Activity Log" width="100%" /> |
 
 ## How It Works: The ComAir Protocol
 
@@ -202,6 +224,12 @@ Browsers impose strict security constraints on Web Audio and microphone access, 
 - **iOS Microphone Cleanup**: Lingering `MediaStreamAudioSourceNode` references on iOS can leave the orange "mic active" indicator on even after stopping. The receiver explicitly tears down and disconnects all audio source nodes.
 - **Auto-Wake & Keep-Alive Daemon**: Physical Furbies enter deep sleep after ~60 seconds of inactivity. The console automatically starts a background keep-alive loop (`cmd 820` every 35 seconds, matching the official app's interval) whenever an active session begins.
 
+<p align="center">
+  <img src="docs/screenshots/pro-console-mobile.png" alt="Pro Console Mobile Layout" width="340" />
+  <br>
+  <em>Mobile layout for the Pro Console with responsive meters and diagnostic controls.</em>
+</p>
+
 ## Corrections & Protocol Facts
 
 Many hobbyist articles and forum write-ups contain errors regarding ComAir. Based on verified reverse-engineered sources and hardware tests:
@@ -215,6 +243,8 @@ Many hobbyist articles and forum write-ups contain errors regarding ComAir. Base
 
 ```text
 furby/
+├── docs/
+│   └── screenshots/               # Interface previews and feature screenshots
 ├── public/
 │   ├── goertzel-processor.js      # Dedicated AudioWorklet for Goertzel RX tone detection
 │   ├── favicon.svg / icons        # PWA icons (192x192, 512x512, apple-touch-icon)

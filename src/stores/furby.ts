@@ -41,14 +41,41 @@ function persistJson(key: string, value: unknown): void {
   }
 }
 
-const initialLog = loadJson<LogEntry[]>(LOG_STORAGE_KEY, []);
+const urlParams =
+  typeof window !== "undefined" && typeof window.location !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+
+export const isDemoMode =
+  urlParams?.get("demo") === "1" || urlParams?.get("demo") === "true";
+
+const demoLog: LogEntry[] = [
+  { id: 1, direction: "tx", command: 820, label: "Keep-alive pulse", at: Date.now() - 35000 },
+  { id: 2, direction: "rx", command: 905, label: "Personality: Pop Star", at: Date.now() - 32000 },
+  { id: 3, direction: "tx", command: 865, label: "Fart (Trick)", at: Date.now() - 22000 },
+  { id: 4, direction: "tx", command: 350, label: "Feed: Pizza Party", at: Date.now() - 15000 },
+  { id: 5, direction: "rx", command: 863, label: "Giggle & Laugh", at: Date.now() - 11000 },
+  { id: 6, direction: "tx", command: 721, label: "Song: Party Tune", at: Date.now() - 4000 },
+];
+
+const demoPersonalityHistory: PersonalitySighting[] = [
+  { id: 1, label: "Pop Star (905)", at: Date.now() - 1000 * 60 * 12 },
+  { id: 2, label: "Diva (901)", at: Date.now() - 1000 * 60 * 45 },
+  { id: 3, label: "Joker (902)", at: Date.now() - 1000 * 60 * 110 },
+];
+
+const initialLog = isDemoMode
+  ? demoLog
+  : loadJson<LogEntry[]>(LOG_STORAGE_KEY, []);
 let nextLogId =
   initialLog.reduce((max, entry) => Math.max(max, entry.id), 0) + 1;
 
-const initialPersonalityHistory = loadJson<PersonalitySighting[]>(
-  PERSONALITY_STORAGE_KEY,
-  [],
-);
+const initialPersonalityHistory = isDemoMode
+  ? demoPersonalityHistory
+  : loadJson<PersonalitySighting[]>(
+      PERSONALITY_STORAGE_KEY,
+      [],
+    );
 
 const transmitter = new ComAirTransmitter();
 let receiver: ComAirReceiver | null = null;
@@ -73,8 +100,11 @@ const RX_THRESHOLD_STORAGE_KEY = "furby-console:rxthreshold:v1";
 /** Default Goertzel magnitude a tone needs to clear to count as "heard" - see ComAirReceiver. */
 export const DEFAULT_RX_THRESHOLD = 0.01;
 
+const urlMode = urlParams?.get("mode") as UiMode | null;
 const initialMode: UiMode =
-  (localStorage.getItem(UI_MODE_STORAGE_KEY) as UiMode) || "kids";
+  (urlMode === "console" || urlMode === "kids" ? urlMode : null) ||
+  (localStorage.getItem(UI_MODE_STORAGE_KEY) as UiMode) ||
+  "kids";
 const initialSoundFx = localStorage.getItem(SOUND_FX_STORAGE_KEY) !== "0";
 const initialReadAloud = localStorage.getItem(READ_ALOUD_STORAGE_KEY) === "1";
 const initialHaptics = localStorage.getItem(HAPTICS_STORAGE_KEY) !== "0";
@@ -111,9 +141,9 @@ export const useFurbyStore = defineStore("furby", {
     soundFxEnabled: initialSoundFx,
     readAloudEnabled: initialReadAloud,
     hapticsEnabled: initialHaptics,
-    mascotMood: "idle" as MascotMood,
-    keepAliveActive: false,
-    micActive: false,
+    mascotMood: (isDemoMode ? "happy" : "idle") as MascotMood,
+    keepAliveActive: isDemoMode ? true : false,
+    micActive: isDemoMode ? true : false,
     micError: null as string | null,
     sendError: null as string | null,
     log: initialLog as LogEntry[],
@@ -123,9 +153,11 @@ export const useFurbyStore = defineStore("furby", {
     keepAliveBusy: false,
     rxThreshold: initialRxThreshold as number,
     /** Live per-tone Goertzel magnitudes from the current mic window, for the RX debug view. Empty while mic is off. */
-    rxMagnitudes: {} as Record<string, number>,
+    rxMagnitudes: (isDemoMode
+      ? { "0": 0.003, "1": 0.005, X: 0.048, "3": 0.004, "2": 0.003 }
+      : {}) as Record<string, number>,
     /** Whichever tone was strongest in the most recent mic window (regardless of threshold). */
-    rxSymbol: null as string | null,
+    rxSymbol: (isDemoMode ? "X" : null) as string | null,
   }),
 
   getters: {

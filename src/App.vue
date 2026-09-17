@@ -15,6 +15,12 @@ import { useFurbyStore, type UiMode } from "./stores/furby";
 
 const store = useFurbyStore();
 
+const urlParams =
+  typeof window !== "undefined" && typeof window.location !== "undefined"
+    ? new URLSearchParams(window.location.search)
+    : null;
+const onlySection = urlParams?.get("only");
+
 function switchMode(mode: UiMode) {
   if (store.uiMode !== mode) {
     if (store.soundFxEnabled) playPop();
@@ -106,52 +112,62 @@ onMounted(() => {
 
       <!-- Pro Developer / Technical Console UI -->
       <div v-else class="console-view">
-        <OnboardingHint />
+        <template v-if="!onlySection || onlySection === 'top'">
+          <OnboardingHint />
 
-        <section class="power-row">
-          <button
-            class="power-btn"
-            :class="{ on: store.keepAliveActive }"
-            :disabled="store.keepAliveBusy"
-            :aria-pressed="store.keepAliveActive"
-            @click="store.toggleKeepAlive"
-          >
-            {{
-              store.keepAliveActive
-                ? "Listening mode: ON"
-                : "Enable listening mode"
-            }}
-          </button>
-          <button
-            class="power-btn"
-            :class="{ on: store.micActive }"
-            :disabled="store.micBusy"
-            :aria-pressed="store.micActive"
-            @click="store.toggleMic"
-          >
-            {{ store.micActive ? "Mic: listening" : "Enable mic (hear Furby)" }}
-          </button>
-        </section>
-        <p v-if="store.micError" class="error">
-          Mic error: {{ store.micError }}
-        </p>
-        <p v-if="store.sendError" class="error">
-          Send error: {{ store.sendError }}
-        </p>
+          <section class="power-row">
+            <button
+              class="power-btn"
+              :class="{ on: store.keepAliveActive }"
+              :disabled="store.keepAliveBusy"
+              :aria-pressed="store.keepAliveActive"
+              @click="store.toggleKeepAlive"
+            >
+              {{
+                store.keepAliveActive
+                  ? "Listening mode: ON"
+                  : "Enable listening mode"
+              }}
+            </button>
+            <button
+              class="power-btn"
+              :class="{ on: store.micActive }"
+              :disabled="store.micBusy"
+              :aria-pressed="store.micActive"
+              @click="store.toggleMic"
+            >
+              {{ store.micActive ? "Mic: listening" : "Enable mic (hear Furby)" }}
+            </button>
+          </section>
+          <p v-if="store.micError" class="error">
+            Mic error: {{ store.micError }}
+          </p>
+          <p v-if="store.sendError" class="error">
+            Send error: {{ store.sendError }}
+          </p>
 
-        <PersonalityTracker />
-        <RxDebugPanel />
+          <PersonalityTracker />
+          <RxDebugPanel />
+        </template>
 
-        <CommandGrid title="Requests" :commands="REQUESTS" />
-        <CommandGrid title="Actions" :commands="ACTIONS" />
-        <CommandGrid title="Food" :commands="FOOD" />
-        <CommandGrid
-          title="Experimental (uncertain effects)"
-          :commands="EXPERIMENTAL"
-        />
-        <Phrasebook />
-        <RawSender />
-        <ActivityLog />
+        <template v-if="!onlySection || onlySection === 'grids'">
+          <CommandGrid title="Requests" :commands="REQUESTS" />
+          <CommandGrid title="Actions" :commands="ACTIONS" />
+          <CommandGrid title="Food" :commands="FOOD" />
+          <CommandGrid
+            title="Experimental (uncertain effects)"
+            :commands="EXPERIMENTAL"
+          />
+        </template>
+
+        <template v-if="!onlySection || onlySection === 'phrasebook'">
+          <Phrasebook />
+        </template>
+
+        <template v-if="!onlySection || onlySection === 'tools' || onlySection === 'raw'">
+          <RawSender />
+          <ActivityLog />
+        </template>
       </div>
     </Transition>
   </main>
