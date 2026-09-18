@@ -94,6 +94,9 @@ const initialPersonalityHistory = isDemoMode
 const transmitter = new ComAirTransmitter();
 let receiver: ComAirReceiver | null = null;
 let playbackMuteWired = false;
+/** What to restart once the page is visible again - set by setPageHidden(true), consumed by setPageHidden(false). */
+let pendingVisibilityResume: { keepAlive: boolean; mic: boolean } | null =
+  null;
 
 export type UiMode = "kids" | "console";
 export type MascotMood =
@@ -188,6 +191,8 @@ export const useFurbyStore = defineStore("furby", {
       : []) as RxDebugLogEntry[],
     /** True for the duration of our own outgoing playback - the receiver is muted then, so RX can't mistake speaker bleed-through for a Furby response. */
     rxMuted: false,
+    /** True while the tab/app is backgrounded - keep-alive and mic are paused then, since a backgrounded page can't reliably transmit/listen anyway. */
+    pageHidden: false,
   }),
 
   getters: {
@@ -467,6 +472,46 @@ export const useFurbyStore = defineStore("furby", {
       } finally {
         this.micBusy = false;
       }
+    },
+
+    /**
+     * Call from a document "visibilitychange" listener. A backgrounded tab
+     * (phone locked/app-switched, or a desktop tab that's not focused) can't
+     * reliably transmit or listen anyway - mobile browsers throttle timers
+     * and often suspend the AudioContext/mic stream outright - so rather
+     * than let keep-alive and RX silently misbehave, tear them down and
+     * remember to bring back whatever was actually running once the page is
+     * visible again.
+     */
+    setPageHidden(hidden: boolean) {
+      if (hidden === this.pageHidden) return;
+      this.pageHidden = hidden;
+
+      if (hidden) {
+        pendingVisibilityResume = {
+          keepAlive: this.keepAliveActive,
+          mic: this.micActive,
+        };
+        if (this.keepAliveActive) {
+          transmitter.stopKeepAlive();
+          this.keepAliveActive = false;
+        }
+        if (this.micActive) {
+          receiver?.stop();
+          receiver = null;
+          this.micActive = false;
+          this.rxMagnitudes = {};
+          this.rxSymbol = null;
+          this.rxRawBuffer = "";
+          this.rxMuted = false;
+        }
+        return;
+      }
+
+      const resume = pendingVisibilityResume;
+      pendingVisibilityResume = null;
+      if (resume?.mic) void this.toggleMic();
+      if (resume?.keepAlive) void this._startKeepAlive();
     },
 
     /** Live-tunable from the RX debug panel while the mic is running, not just at start. */

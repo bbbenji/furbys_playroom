@@ -34,6 +34,7 @@ vi.mock("../comair/transmitter", () => ({
     startKeepAlive: mocks.startKeepAliveMock,
     stopKeepAlive: mocks.stopKeepAliveMock,
     onSent: vi.fn(),
+    onPlaybackChange: vi.fn(),
   })),
 }));
 
@@ -42,8 +43,10 @@ vi.mock("../comair/receiver", () => ({
     onPacket: vi.fn(),
     onCommand: vi.fn(),
     onSymbol: vi.fn(),
+    onDebug: vi.fn(),
     start: vi.fn(async () => {}),
     stop: vi.fn(),
+    setMuted: vi.fn(),
     magnitudeThreshold: 0.01,
   })),
   friendlyReceiverError: vi.fn((err: unknown) => String(err)),
@@ -242,6 +245,76 @@ describe("useFurbyStore preferences & settings toggles", () => {
     vi.advanceTimersByTime(1550);
     expect(store.mascotMood).toBe("idle");
     vi.useRealTimers();
+  });
+});
+
+describe("useFurbyStore.setPageHidden", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    setActivePinia(createPinia());
+    mocks.sendMock.mockClear();
+    mocks.startKeepAliveMock.mockClear();
+    mocks.stopKeepAliveMock.mockClear();
+    mocks.resetKeepAliveActive();
+  });
+
+  it("is a no-op while idle - nothing was running to pause", () => {
+    const store = useFurbyStore();
+    store.setPageHidden(true);
+    expect(store.pageHidden).toBe(true);
+    expect(mocks.stopKeepAliveMock).not.toHaveBeenCalled();
+
+    store.setPageHidden(false);
+    expect(store.pageHidden).toBe(false);
+    expect(mocks.startKeepAliveMock).not.toHaveBeenCalled();
+  });
+
+  it("pauses an active keep-alive on hide and resumes it on show", async () => {
+    const store = useFurbyStore();
+    await store.send(865); // auto-starts keep-alive
+    expect(store.keepAliveActive).toBe(true);
+
+    store.setPageHidden(true);
+    expect(mocks.stopKeepAliveMock).toHaveBeenCalledTimes(1);
+    expect(store.keepAliveActive).toBe(false);
+
+    store.setPageHidden(false);
+    await vi.waitFor(() =>
+      expect(mocks.startKeepAliveMock).toHaveBeenCalledTimes(2),
+    );
+    expect(store.keepAliveActive).toBe(true);
+  });
+
+  it("pauses an active mic on hide and resumes it on show", async () => {
+    const store = useFurbyStore();
+    await store.toggleMic();
+    expect(store.micActive).toBe(true);
+
+    store.setPageHidden(true);
+    expect(store.micActive).toBe(false);
+    expect(store.rxMagnitudes).toEqual({});
+
+    store.setPageHidden(false);
+    await vi.waitFor(() => expect(store.micActive).toBe(true));
+  });
+
+  it("does not resume something that wasn't active before hiding", async () => {
+    const store = useFurbyStore();
+    expect(store.keepAliveActive).toBe(false);
+    expect(store.micActive).toBe(false);
+
+    store.setPageHidden(true);
+    store.setPageHidden(false);
+
+    expect(mocks.startKeepAliveMock).not.toHaveBeenCalled();
+    expect(store.micActive).toBe(false);
+  });
+
+  it("ignores a duplicate hidden/visible call with no state change", () => {
+    const store = useFurbyStore();
+    store.setPageHidden(true);
+    store.setPageHidden(true);
+    expect(store.pageHidden).toBe(true);
   });
 });
 

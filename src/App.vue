@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from "vue";
+import { onMounted, onUnmounted } from "vue";
 import ActivityLog from "./components/ActivityLog.vue";
 import CommandGrid from "./components/CommandGrid.vue";
 import KidsView from "./components/kids/KidsView.vue";
@@ -35,6 +35,20 @@ onMounted(() => {
   window.addEventListener("pointerdown", () => store.unlockAudio(), {
     once: true,
   });
+});
+
+// A backgrounded tab (phone locked/app-switched, or an unfocused desktop
+// tab) can't reliably keep transmitting/listening, so pause and resume
+// keep-alive + mic around visibility changes instead of letting them
+// silently misbehave in the background.
+function handleVisibilityChange() {
+  store.setPageHidden(document.hidden);
+}
+onMounted(() => {
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+});
+onUnmounted(() => {
+  document.removeEventListener("visibilitychange", handleVisibilityChange);
 });
 </script>
 
